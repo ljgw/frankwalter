@@ -1,7 +1,7 @@
 FrankWalter
 ============
 
-FrankWalter is a winboard/xboard chess engine written in Java.
+FrankWalter ${version} is a winboard/xboard chess engine written in Java.
 
 Usage
 -----
