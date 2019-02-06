@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="#[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n"/>
+        </Console>
+        <File name="file" fileName="debug.log" immediateFlush="false" append="true" createOnDemand="true">
+            <PatternLayout pattern="[%-5level] pid:%processId %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n"/>
+        </File>
+        <Async name="async-file" blocking="false" errorRef="console">
+            <AppenderRef ref="file"/>
+        </Async>
+    </Appenders>
+    <Loggers>
+        <Root level="debug" additivity="false">
+            <AppenderRef ref="console"/>
+        </Root>
+    </Loggers>
+</Configuration>

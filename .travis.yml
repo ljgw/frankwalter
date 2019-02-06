@@ -1,0 +1,15 @@
+language: java
+
+install:
+  - wget https://github.com/ljgw/syzygy-bridge/releases/download/v1.0.0/syzygy-bridge.jar
+  - mvn install:install-file -Dfile=syzygy-bridge.jar
+  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+
+deploy:
+  provider: releases
+  api_key: $GITHUB_API_TOKEN
+  file: target/frankwalter-dist.zip
+  skip_cleanup: true
+  on:
+    tags: true
+    branch: release
