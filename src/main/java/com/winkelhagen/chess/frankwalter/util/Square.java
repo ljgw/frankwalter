@@ -37,8 +37,8 @@ public enum Square {
 
     /**
      * returns the name of the square associated with the number the square is represented by in the board representation.
-     * @param i
-     * @return
+     * @param i the number of the square
+     * @return the Square
      */
     public static Square byNumber(int i){
         return values()[i];

@@ -240,7 +240,7 @@ public class Evaluator {
     /**
      * score for a draw, based on contempt. Other formula's than return 0 are untested.
      * 
-     * @return
+     * @return the contempt constant
      */
     public static int getContemptScore() {
         return CONTEMPT;

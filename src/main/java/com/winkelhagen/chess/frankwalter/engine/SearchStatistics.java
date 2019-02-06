@@ -58,9 +58,9 @@ public class SearchStatistics {
     }
 
     /**
-     * stop statistics and log them)
+     * stop statistics and log them
      * 
-     * @param move
+     * @param move the move that is played.
      */
     public void stop(String move) {
         long duration = new GregorianCalendar().getTimeInMillis() - starttime;

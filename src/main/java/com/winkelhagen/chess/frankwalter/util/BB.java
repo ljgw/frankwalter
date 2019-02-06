@@ -400,7 +400,7 @@ public class BB {
 	/* get index for sliders functions */
 
 	/**
-	 * get the horizontal and vertical all moves bitboard for a certain square and occupancy</br>
+	 * Get the horizontal and vertical all moves bitboard for a certain square and occupancy.<br>
 	 * This uses Kindergarten Bitboards for verticals and plain bitboards for horizontals.
 	 * @param square the square the piece is on
 	 * @param occupied the relevant occupancy
@@ -415,7 +415,7 @@ public class BB {
 	}
 
 	/**
-	 * get the diagonal all moves bitboard for a certain square and occupancy</br>
+	 * Get the diagonal all moves bitboard for a certain square and occupancy.<br>
 	 * This uses magic bitboards.
 	 * @param square the square the piece is on
 	 * @param occupied the relevant occupancy
@@ -430,7 +430,7 @@ public class BB {
 
 	/* Basic operations */
 	/**
-	 * function to get the rank (0-7) of a square using square >> 3.
+	 * function to get the rank (0-7) of a square using square &gt;&gt; 3.<br>
 	 * @param square the square
 	 * @return the rank
 	 */
@@ -439,8 +439,8 @@ public class BB {
 	}
 	
 	/**
-	 * function to get the file (0-7) of a square.
-	 * square % 8 (or & 7)
+	 * function to get the file (0-7) of a square.<br>
+	 * square % 8 (or &amp; 7)
 	 * @param square the square
 	 * @return the file
 	 */
@@ -449,8 +449,8 @@ public class BB {
 	}
 	
 	/**
-	 * function to get a single bitboard (long) of a square.
-	 * 1L << square
+	 * function to get a single bitboard (long) of a square.<br>
+	 * 1L &lt;&lt; square
 	 * @param square the square
 	 * @return the bitboard
 	 */
@@ -459,8 +459,8 @@ public class BB {
 	}
 
 	/**
-	 * function to add a square to a bitboard (long).
-	 * bb | 1L << square
+	 * function to add a square to a bitboard (long).<br>
+	 * bb | 1L &lt;&lt; square
 	 * @param square the square
 	 * @param bb the bitboard
 	 * @return the resulting bitboard
@@ -499,7 +499,7 @@ public class BB {
 		return 63-Long.numberOfLeadingZeros(bb);
 	}
 	/**
-	 * Strip Least Significant Bit (bb &= bb - 1;)
+	 * Strip Least Significant Bit (bb &amp;= bb - 1;)
 	 * @param bb the bitboard
 	 * @return the resulting bitboard
 	 */

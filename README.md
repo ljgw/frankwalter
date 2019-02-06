@@ -1,7 +1,7 @@
 FrankWalter
-============
+===========
 
-FrankWalter ${version} is a winboard/xboard chess engine written in Java.
+[![Build Status](https://travis-ci.org/ljgw/frankwalter.svg?branch=master)](https://travis-ci.org/ljgw/frankwalter) FrankWalter is a winboard/xboard chess engine written in Java.
 
 Usage
 -----
@@ -32,11 +32,10 @@ It should be possible to compile the JSyzygy library on MacOs (and name it libJS
 
 Acknowledgements
 ----------------
-Frank-Walter would not have been complete or even possible without the inspiration and material provided by the following people:
+FrankWalter would not have been complete or even possible without the inspiration and material provided by the following people:
 
 * Working with magic bitboards and kindergarten bitboards it is hard not to acknowledge Gerd Isenberg, Pradu Kannan en Lasse Hansen.
 * The openingbook format is the Beowulf-format. Principal author Colin Frayn also provided the basic book, used with permission.
 * Texels Tuning Method was developed by Peter Österlund, I have made use of the positions provided by the authors of Zurichess (quiet-labeled.epd)
 * Syzygy Tablebases were developed by Ronald de Man. Basil00 made a c/c++ library for easy integration in c/c++ projects. I've taken the fork of Jon Dart and integrated in my Java program via JNI.
-* In general, the people on TalkChess forums and behind the Chessprogramming.org wiki have been great sources of ideas and knowledge.
-* Finally Ron Murawski for hosting versions of FrankWalter on http://www.computer-chess.org.
+* In general, the people on TalkChess forums and behind the chessprogramming.org wiki have been great sources of ideas and knowledge.
