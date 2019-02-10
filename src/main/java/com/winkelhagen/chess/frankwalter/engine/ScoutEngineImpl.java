@@ -177,6 +177,7 @@ public class ScoutEngineImpl implements Engine {
 
         // Setup the possible moves.
         List<ScoredMove> list = generateScoredMoves();
+        logger.debug("searching for best move from {} - {} possible moves", list.size(), avoidMoves.size());
 
         if (list.isEmpty()) {
             return 0; // No move is possible.

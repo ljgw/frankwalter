@@ -49,8 +49,9 @@ public class FrankWalter {
 	 * main method of Frank-Walter: use it to start the engine.
 	 * @param args commandline arguments
 	 */
-	public static void main( String[] args )	{
+	public static void main(String[] args )	{
 		Thread.currentThread().setName("MAIN");
+		Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
 		fwConfig = new FWConfig(args);
 		rerouteLogging(fwConfig);
 		logger.info("Started FrankWalter {}", Constants.getVersion());
