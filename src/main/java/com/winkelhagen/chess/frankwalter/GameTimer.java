@@ -57,14 +57,6 @@ public class GameTimer {
     }
 
     /**
-     * @deprecated please add the delay parameter (default = 0)
-     */
-    @Deprecated
-    public int calculateTime(int fullMoves) {
-        return calculateTime(fullMoves, 0);
-    }
-
-    /**
      * Calculate the time we dare take for a move based roughly on:
      * <ul>
      * <li>our time</li>

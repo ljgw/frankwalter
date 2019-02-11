@@ -50,7 +50,7 @@ public class BestMoveProcessor extends EpdProcessor {
         for (String bestMove : epd.getOpCodeValue(EpdOpCode.BM).trim().split(" ")){
             epdBestMoves.add(MV.toString(StaticMoveGenerator.parseSAN(fwConfig.board, bestMove)));
         }
-        String engineBestMove = MV.toString(fwConfig.timedSearchStarter.getBestMove(false, System.currentTimeMillis() + millisToSolve, new HashSet<>()));
+        String engineBestMove = MV.toString(fwConfig.timedSearchStarter.getBestMove(false, millisToSolve, new HashSet<>()));
         String result;
         if (epdBestMoves.contains(engineBestMove)){
             solves++;

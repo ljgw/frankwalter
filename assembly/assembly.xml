@@ -25,6 +25,11 @@
         <file>
             <source>README.md</source>
             <outputDirectory>.</outputDirectory>
+            <filtered>false</filtered>
+        </file>
+        <file>
+            <source>history.md</source>
+            <outputDirectory>.</outputDirectory>
             <filtered>true</filtered>
         </file>
         <file>

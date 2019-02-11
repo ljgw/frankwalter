@@ -98,6 +98,7 @@ public class FrankWalterTest {
         send("level 40 5 0");
         send("post");
         send("hard");
+        send("easy");
         send("force");
         send("time 30000");
         send("otim 30000");

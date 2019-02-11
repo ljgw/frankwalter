@@ -255,7 +255,10 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
         return true;
         }
 
-    /** Reads the entire state of the MersenneTwister RNG from the stream */
+    /** Reads the entire state of the MersenneTwister RNG from the stream
+     * @param stream the state of the RNG as a stream
+     * @throws IOException when the stream cannot be read
+     */
     public void readState(DataInputStream stream) throws IOException
 
         {
@@ -271,7 +274,10 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
         __haveNextNextGaussian = stream.readBoolean();
         }
         
-    /** Writes the entire state of the MersenneTwister RNG to the stream */
+    /** Writes the entire state of the MersenneTwister RNG to the stream
+     * @param stream the state of the RNG as a stream
+     * @throws IOException when the stream cannot be written
+     */
     public void writeState(DataOutputStream stream) throws IOException
         {
         int len = mt.length;
@@ -290,6 +296,7 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
 
     /**
      * Constructor using the default seed.
+     *
      */
     public MersenneTwister()
         {
@@ -298,8 +305,9 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     
     /**
      * Constructor using a given seed.  Though you pass this seed in
-
      * as a long, it's best to make sure it's actually an integer.
+     *
+     * @param seed the seed
      */
     public MersenneTwister(final long seed)
         {
@@ -312,8 +320,8 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
      * Constructor using an array of integers as seed.
      * Your array must have a non-zero length.  Only the first 624 integers
      * in the array are used; if the array is shorter than this then
-
      * integers are repeatedly used in a wrap-around fashion.
+     * @param array the non-zero array of integers to use as seed
      */
     public MersenneTwister(final int[] array)
         {
@@ -326,9 +334,8 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
      * Initalize the pseudo random number generator.  Don't
      * pass in a long that's bigger than an int (Mersenne Twister
      * only uses the first 32 bits for its seed).   
-
+     * @param seed the seed
      */
-
     synchronized public void setSeed(final long seed)
         {
         // it's always good style to call super
@@ -366,9 +373,9 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     /**
      * Sets the seed of the MersenneTwister using an array of integers.
      * Your array must have a non-zero length.  Only the first 624 integers
-
      * in the array are used; if the array is shorter than this then
      * integers are repeatedly used in a wrap-around fashion.
+     * @param array the non-zero array of integers to use as seed
      */
 
     synchronized public void setSeed(final int[] array)
@@ -480,12 +487,13 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
 
     public boolean nextBoolean() {return next(1) != 0;}
 
-    /** This generates a coin flip with a probability <tt>probability</tt>
-        of returning true, else returning false. <tt>probability</tt> must
+    /** This generates a coin flip with a probability <var>probability</var>
+        of returning true, else returning false. <var>probability</var> must
 
         be between 0.0 and 1.0, inclusive.  Not as precise a random real
         event as nextBoolean(double), but twice as fast. To explicitly
         use this, remember you may need to cast to float first.
+     * @param probability a probability between 0.0 and 1.0, inclusive.
      * @return the random value
      */
 
@@ -501,9 +509,10 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
         }
 
 
-    /** This generates a coin flip with a probability <tt>probability</tt>
-        of returning true, else returning false. <tt>probability</tt> must
+    /** This generates a coin flip with a probability <var>probability</var>
+        of returning true, else returning false. <var>probability</var> must
         be between 0.0 and 1.0, inclusive.
+     * @param probability a probability between 0.0 and 1.0, inclusive.
      * @return the random value
      */
 
@@ -521,6 +530,7 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
         
     /** This method is missing from JDK 1.1 and below.  JDK 1.2
         includes this for us, but what the heck.
+     * @param n max value + 1
      * @return the random value
      */
 
@@ -547,7 +557,8 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     /** This method is for completness' sake. 
         Returns a long drawn uniformly from 0 to n-1.  Suffice it to say,
 
-        n must be > 0, or an IllegalArgumentException is raised.
+        n must be &gt; 0, or an IllegalArgumentException is raised.
+     * @param n max value + 1
      * @return the random value
      */
     
@@ -593,7 +604,7 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     /** A bug fix for all versions of the JDK.  The JDK appears to
         use all four bytes in an integer as independent byte values!
         Totally wrong. I've submitted a bug report.
-     * @return the random value
+     * @param bytes the byres to fill
      */
     public void nextBytes(final byte[] bytes)
         {
@@ -614,8 +625,6 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     /** For completeness' sake, though it's not in java.util.Random.
      * @return the random value
      */
-
-    
     public short nextShort()
         {
         return (short)(next(16));
@@ -624,7 +633,6 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     /** For completeness' sake, though it's not in java.util.Random.
      * @return the random value
      */
-
     public byte nextByte()
 
         {
@@ -639,8 +647,7 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
         http://developer.java.sun.com/developer/bugParade/bugs/4254501.html</a>
      * @return the random value
     */
-
-    synchronized public double nextGaussian() 
+    synchronized public double nextGaussian()
 
         {
         if (__haveNextNextGaussian) 
@@ -669,6 +676,7 @@ public class MersenneTwister extends java.util.Random implements Serializable, C
     
     /**
      * Tests the code.
+     * @param args any commandline arguments (ignored)
      */
     public static void main(String args[])
         { 

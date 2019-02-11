@@ -34,8 +34,6 @@ public class XBoardInterface extends AbstractInterface {
     private static final int STATE_XBOARD = 2;
     private int state = STATE_OFF;
 
-    private boolean newPreloaded = false;
-
     public XBoardInterface(GameController ui) {
         super(ui);
     }
@@ -103,11 +101,7 @@ public class XBoardInterface extends AbstractInterface {
                 logger.debug("feature was rejected {}", userInput);
                 break;
             case "new":
-                if (newPreloaded){
-                    newPreloaded = false;
-                } else {
-                    game.setupNewGame();
-                }
+                game.setupNewGame();
                 break;
             case "egtpath":
                 loadEndgameTablebases(userInputSubstrings, command);

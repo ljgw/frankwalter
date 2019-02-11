@@ -33,19 +33,19 @@ public class TimedSearchStarter implements Runnable {
     private volatile boolean ponder;
 
     private final Thread waker;
+    private volatile boolean ponderAllowed = false;
 
 
     /**
      * sets the remaining time to think for a running search.
      *
-     * @param sleepToTime the time at which we should stop thinking
+     * @param thinkingTime the time at to remain searching
      */
-    public void setTimeRemaining(long sleepToTime) {
-        int thinkingTime = (int) (sleepToTime - System.currentTimeMillis());
+    public void setTimeRemaining(long thinkingTime) {
+        this.sleepToTime = (System.currentTimeMillis() + thinkingTime);
         logger.debug("Need to make a move within {} ms now.", thinkingTime);
 
         engine.showLastThoughtLine();
-        this.sleepToTime = sleepToTime;
         stopPondering();
     }
 
@@ -60,23 +60,36 @@ public class TimedSearchStarter implements Runnable {
     /**
      * Return the best possible move within the set thinking time, set statistics.
      * @param ponder are we pondering or not
-     * @param sleepToTime the time at which we should stop thinking
+     * @param thinkingTime the time allowed to think
      * @param avoidMoves moves to avoid - these are not investigated unless no other moves are available.
      *
      * @return an int representing the best move. ({@link Engine#getBestMove(Set)}
      */
-    public int getBestMove(boolean ponder, long sleepToTime, Set<Integer> avoidMoves) {
-        int thinkingTime = (int) (sleepToTime - System.currentTimeMillis());
+    public int getBestMove(boolean ponder, long thinkingTime, Set<Integer> avoidMoves) {
+        if (ponder && !ponderAllowed){
+            logger.debug("ponder not allowed now");
+            return 0;
+        }
+        long systemTime = System.currentTimeMillis();
+        if (ponder && sleepToTime > systemTime){
+            logger.debug("already a ponder-hit, not pondering");
+            ponder = false;
+            thinkingTime = sleepToTime - systemTime;
+        }
+
         logger.debug("Need to make a move within {} ms.", thinkingTime);
 
         // Set an alarm
         if (!ponder) {
-            this.sleepToTime = sleepToTime;
+            sleepToTime = (systemTime + thinkingTime);
         }
         this.ponder = ponder;
 
         // Find the actual move (this also causes the thread to stop waiting, if ponder is false)
-        return engine.getBestMove(avoidMoves);
+        int move = engine.getBestMove(avoidMoves);
+
+        waker.interrupt(); //might be a forced move, so waker might be sleeping.
+        return move;
     }
 
     /**
@@ -85,23 +98,24 @@ public class TimedSearchStarter implements Runnable {
     public TimedSearchStarter(Engine engine) {
         this.engine = engine;
         waker = new Thread(this, "waker-bm");
+        waker.setPriority(7);
         waker.setDaemon(true);
         waker.start();
     }
 
-
-    //todo: keep this thread alive, in a while true loop. Get rid of thread interrupt code above.
-    //after the engine is stopped, wait again till the engine runs again and we're not pondering.
     @Override
     public void run() {
-        while (true) {
+        while (true) { //NOSONAR
             try {
                 //first, wait until the engine is running, if needed.
                 synchronized (SYNC_OBJECT) {
-                    while (!engine.isRunning() || ponder) {
+                    while (!engine.isRunning() || (ponderAllowed && ponder)) {
                         logger.debug("engine is not running or we're in ponder: waiting");
                         SYNC_OBJECT.wait();
                         logger.debug("engine was not running: notified");
+                    }
+                    if (ponder && !ponderAllowed) {
+                        logger.debug("pondering was requested, but not allowed");
                     }
                 }
                 long sleepTime = (sleepToTime - System.currentTimeMillis());
@@ -111,16 +125,14 @@ public class TimedSearchStarter implements Runnable {
                 } else {
                     logger.debug("not sleeping because sleepTime ({}) is zero or negative", sleepTime);
                 }
-                if (Thread.currentThread().isInterrupted()) {
-                    logger.debug("interrupted - not stopping engine");
-                    return;
-                }
                 engine.forceStop();
-            } catch (InterruptedException ie) {
+            } catch (InterruptedException ie) { //NOSONAR
                 logger.debug("interrupted - not stopping engine");
-                Thread.currentThread().interrupt();
             }
         }
     }
 
+    public void setPonderAllowed(boolean ponderAllowed) {
+        this.ponderAllowed = ponderAllowed;
+    }
 }

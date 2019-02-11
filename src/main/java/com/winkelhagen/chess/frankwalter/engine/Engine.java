@@ -75,7 +75,7 @@ public interface Engine {
 
     /**
      * query the board for the best move according to the TranspositionTable
-     * @return
+     * @return the hashmove from the TranspositionTable
      */
     int getBestMoveFromTT();
 

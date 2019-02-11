@@ -242,8 +242,8 @@ public class MV {
     /**
      * return a string representing the pv.
      * 
-     * @param principalVariation
-     *            the principalVariation
+     * @param principalVariation the principalVariation
+     * @param fail a possible indication of a fail-high or fail low
      * @return a String representation of the principalVariation.
      */
     public static String toString(int[] principalVariation, FailHighLow fail) {
@@ -271,7 +271,7 @@ public class MV {
     }
 
     /**
-     * print the move to the screen in a full line in full notation, prefixed with "move ".<br/>
+     * print the move to the screen in a full line in full notation, prefixed with "move ".<br>
      *
      * examples: "move b1c3", "move e1g1", move "e7e8q"
      * 
@@ -379,5 +379,14 @@ public class MV {
      */
     public static int stripScore(int move) {
         return move & SCORELESS_MASK;
+    }
+
+    /**
+     * returns the score associated with this ordered move
+     * @param move the move
+     * @return the score component
+     */
+    public static int getScore(int move) {
+        return (move >> 19) & 1023;
     }
 }
