@@ -3,7 +3,7 @@
 	<groupId>com.winkelhagen.chess</groupId>
 	<artifactId>frankwalter</artifactId>
 	<packaging>jar</packaging>
-	<version>2.3.2-SNAPSHOT</version>
+	<version>2.3.2</version>
 	<name>FrankWalter</name>
 	<url>https://github.com/ljgw/frankwalter</url>
 
@@ -11,7 +11,7 @@
 		<url>https://github.com/ljgw/frankwalter</url>
 		<connection>scm:git:git://github.com/ljgw/frankwalter.git</connection>
 		<developerConnection>scm:git:git@github.com:ljgw/frankwalter.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>v2.3.2</tag>
 	</scm>
 
 	<properties>
