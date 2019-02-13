@@ -24,7 +24,7 @@ import static org.junit.Assert.*;
 public class EntryTest {
     @Test
     public void entryTest() throws Exception {
-        long entry = Entry.toLong(Entry.correctMatePut(-31998,1), (short)1, 1, Entry.EXACT);
+        long entry = Entry.toLong(Entry.correctMateScore(-31998,1), (short)1, 1, Entry.EXACT);
         assertEquals("move = ", 1, Entry._move(entry));
         assertEquals("score = -31998", -31998, Entry._score(entry, 1));
         assertEquals("depth = 1", 1, Entry._depth(entry));

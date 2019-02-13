@@ -24,21 +24,30 @@ import java.util.Arrays;
  * @author Laurens
  *
  */
-public class TranspositionTableArrayImpl implements TranspositionTable {
+public class TranspositionTableQuadArrayImpl implements TranspositionTable {
 	private long[] table = null;
 
 	private int magnitude; //bits of the key
-	private int mask;
+	private long mask;
+	private long inverseMask;
+	private int currentAge;
 
-	public TranspositionTableArrayImpl(int magnitude){
+	public TranspositionTableQuadArrayImpl(int magnitude){
 		this.magnitude = magnitude;
-		this.mask = (1 << magnitude) -1; 
+		this.mask = (1 << (magnitude-2)) -1;
+		this.inverseMask = ~mask;
 		initTable();
 	}
 	
 	private void initTable(){
 		int size = 1 << magnitude;
 		table = new long[size*2];
+		currentAge = 0;
+	}
+
+	@Override
+	public void increaseAge(){
+		currentAge = (currentAge+1)&(int)mask;
 	}
 	
 	/* (non-Javadoc)
@@ -46,30 +55,39 @@ public class TranspositionTableArrayImpl implements TranspositionTable {
 	 */
     @Override
 	public void setEntry(long hashKey, int score, short selDepth, int move, byte type, int depth){
-		int key = (int)hashKey & mask;
-		long entryhash = table[key*2];
-		long entry = table[key*2+1];
-		if (entryhash==hashKey && Entry._depth(entry)>selDepth && type != Entry.EXACT){
-			// If this is the same position AND it is searched deeper then do not overwrite.
-			// Unless the new entry is exact: note that then the old entry would not be exact OR would be less deep.
-			return;
+    	int maskedKey = (int)(hashKey & mask);
+		int key = maskedKey<<2;
+		int replaceIndex = 0;
+		int replaceDepth = Integer.MAX_VALUE;
+		for (int i=0; i<4;i++) {
+			long entryHash = table[(key+i) * 2];
+			if (entryHash==0){
+				replaceIndex = i;
+				break;
+			}
+			long entry = table[key*2+1];
+			int entryDepth = Entry._depth(entry);
+			if ((entryHash&inverseMask) == (hashKey&inverseMask)) {
+				//this is the one
+				if (entryDepth>selDepth && type != Entry.EXACT){
+					return;
+				}
+				break;
+			}
+
+			int entryAge = (int)(entryHash&mask);
+			//entries from an older search can be overwritten anyway
+			if (entryAge!=currentAge){
+				replaceIndex = i;
+				break;
+				//replace least deep: todo: try to de-prioritize replacing EXACT entries
+			} else if (entryDepth<replaceDepth){
+				replaceIndex = i;
+				replaceDepth = entryDepth;
+			}
 		}
-//		//TODO figure out if this improves shown PV by not removing PV entries from the TT. (seems 1 worse in WAC...)
-//		if (entryhash==hashKey) {
-//			if (Entry._depth(entry)>selDepth && type != Entry.EXACT){
-//				// If this is the same position AND it is searched deeper then do not overwrite.
-//				// Unless the new entry is exact: note that then the old entry would not be exact OR would be less deep.
-//				return;
-//			}
-//			if (Entry._type(entry) == Entry.EXACT){
-//				// if the current entry is EXACT then do not overwrite
-//				if (Entry._depth(entry) >= selDepth || type != Entry.EXACT) {
-//					return;
-//				}
-//			}
-//		}
-		table[key*2] = hashKey;
-		table[key*2+1] = Entry.toLong(Entry.correctMateScore(score, depth), selDepth, move, type);
+		table[(key+replaceIndex)*2] = (hashKey^(long)maskedKey)|(long)currentAge;
+		table[(key+replaceIndex)*2+1] = Entry.toLong(Entry.correctMateScore(score, depth), selDepth, move, type);
 	}
 	
 	/* (non-Javadoc)
@@ -77,13 +95,14 @@ public class TranspositionTableArrayImpl implements TranspositionTable {
 	 */
     @Override
 	public long getEntry(long hashKey){
-		int key = (int)hashKey & mask;
-		long entryhash = table[key*2];
-		if (entryhash==hashKey) {
-		    return table[key*2+1];
-		} else {
-		    return 0;
+		int key = (int)(hashKey & mask)<<2;
+		for (int i=0; i<4;i++) {
+			long entryHash = table[(key+i) * 2];
+			if ((entryHash&inverseMask) == (hashKey&inverseMask)) {
+				return table[(key+i) * 2 + 1];
+			}
 		}
+		return 0;
 	}
 
 	@Override
@@ -93,12 +112,8 @@ public class TranspositionTableArrayImpl implements TranspositionTable {
 
 	@Override
 	public void clear() {
+		currentAge = 0;
 		Arrays.fill(table, 0);
-	}
-
-	@Override
-	public void increaseAge() {
-		//no-op
 	}
 
 }

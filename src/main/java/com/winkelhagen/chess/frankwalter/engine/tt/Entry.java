@@ -85,7 +85,7 @@ public class Entry {
         return ((long) move << 32) | (score << 16) & 0xFFFFFFFFL | (depth << 2) | type;// & 0xFF.. is needed for negative values.
     }
 
-    public static short correctMatePut(int score, int depth) {
+    public static short correctMateScore(int score, int depth) {
         if (score < ScoutEngineImpl.MATE_TT){
             return (short) (score-depth);
         } else if (score > -ScoutEngineImpl.MATE_TT){

@@ -65,7 +65,7 @@ public class TranspositionTableImpl implements TranspositionTable {
         }
         entry.hashKey = hashKey;
         entry.depth = todepth;
-        entry.score = Entry.correctMatePut(score, todepth);
+        entry.score = Entry.correctMateScore(score, todepth);
         entry.move = move;
     }
 
@@ -91,6 +91,11 @@ public class TranspositionTableImpl implements TranspositionTable {
     @Override
     public void clear() {
         Arrays.fill(table, null);
+    }
+
+    @Override
+    public void increaseAge() {
+        //no-op
     }
 
 }

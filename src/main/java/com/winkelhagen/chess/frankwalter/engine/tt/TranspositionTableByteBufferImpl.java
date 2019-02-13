@@ -58,7 +58,7 @@ public class TranspositionTableByteBufferImpl implements TranspositionTable {
 			return;
 		}
 		table.put(key*2, hashKey);
-		table.put(key*2+1, Entry.toLong(Entry.correctMatePut(score, depth), selDepth, move, type));
+		table.put(key*2+1, Entry.toLong(Entry.correctMateScore(score, depth), selDepth, move, type));
 	}
 	
 	/* (non-Javadoc)
@@ -86,4 +86,10 @@ public class TranspositionTableByteBufferImpl implements TranspositionTable {
 			Arrays.fill(table.array(), 0);
 		}
 	}
+
+	@Override
+	public void increaseAge() {
+		//no-op
+	}
+
 }

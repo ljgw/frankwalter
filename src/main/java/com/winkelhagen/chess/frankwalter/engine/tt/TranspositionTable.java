@@ -19,13 +19,14 @@ package com.winkelhagen.chess.frankwalter.engine.tt;
 
 public interface TranspositionTable {
 
-	void setEntry(long hashKey, int score, short selDepth, int move,
-			byte type, int depth);
+	void setEntry(long hashKey, int score, short selDepth, int move, byte type, int depth);
 
 	long getEntry(long hashKey);
 
 	void free();
 
 	void clear();
+
+	void increaseAge();
 
 }

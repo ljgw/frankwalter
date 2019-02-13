@@ -914,4 +914,9 @@ public class Board {
         return zobrist.getHash();
     }
 
+    public int getPlyCount() {
+        return ply;
+    }
+
+
 }
