@@ -39,4 +39,10 @@ public class TranspositionTableDummy implements TranspositionTable {
     public void clear() {
         // Dummy
     }
+
+    @Override
+    public void increaseAge() {
+        //no-op
+    }
+
 }

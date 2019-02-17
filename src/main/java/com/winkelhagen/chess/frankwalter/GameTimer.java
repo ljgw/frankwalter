@@ -17,6 +17,9 @@
  */
 package com.winkelhagen.chess.frankwalter;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * Created by laurens on 19-12-16 for frankwalter.
  */
@@ -92,7 +95,7 @@ public class GameTimer {
             movesLeft += fullMovesPerSession;
         }
 
-        int returnTime = ownTime-incTime / (movesLeft + 2) + incTime;
+        int returnTime = (ownTime-incTime) / (movesLeft + 2) + incTime;
         if (returnTime > (ownTime - 100)) {
             return ownTime / 2;
         } else {

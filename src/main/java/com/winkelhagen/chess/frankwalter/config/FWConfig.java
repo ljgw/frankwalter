@@ -21,7 +21,7 @@ import com.winkelhagen.chess.frankwalter.board.Board;
 import com.winkelhagen.chess.frankwalter.engine.Engine;
 import com.winkelhagen.chess.frankwalter.engine.ScoutEngineImpl;
 import com.winkelhagen.chess.frankwalter.engine.TimedSearchStarter;
-import com.winkelhagen.chess.frankwalter.engine.tt.TranspositionTableArrayImpl;
+import com.winkelhagen.chess.frankwalter.engine.tt.TranspositionTableQuadArrayImpl;
 import com.winkelhagen.chess.frankwalter.util.BB;
 import com.winkelhagen.chess.syzygy.SyzygyBridge;
 import org.apache.logging.log4j.LogManager;
@@ -220,7 +220,7 @@ public class FWConfig {
 	public void setTranspositionTable() {
 		int magnitude = getTTSize(getMaxTTSize());
 		logger.info("initializing TranspositionTables with magnitude {} ({} MB)", magnitude, (1<<(magnitude-16)));
-		engine.setTranspositionTable(new TranspositionTableArrayImpl(magnitude));
+		engine.setTranspositionTable(new TranspositionTableQuadArrayImpl(magnitude));
 	}
 
 }

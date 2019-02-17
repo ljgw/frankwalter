@@ -45,12 +45,13 @@ public class ScoutEngineImpl implements Engine {
     private static final Logger logger = LogManager.getLogger();
 
     /*
-     * Absolute max depth to search a position is set to 100, which we only reach in super end-game (need to implement
-     * tablebases!) To keep the movesTable small, we use a predicted max moves number as the maximum number of moves in
+     * Absolute max depth to search a position is set to 100, which we only reach in super end-game.
+     * To keep the movesTable small, we use a predicted max moves number as the maximum number of moves in
      * a position. Apparently the absolute max is 218 (in: R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1) --
      * This, however, is defined in the Board class.
      */
-    private static final int ABSOLUTE_MAX_DEPTH = 100;
+    private static final int ABSOLUTE_MAX_DEPTH = 125;
+    private static final int MAX_DEPTH_MARGIN = 50;
 
     /*
      * score related constants: (INFINITY) Impossible max scores (alpha = -INFINITY, beta = INFINITY) to give bounds to
@@ -95,14 +96,14 @@ public class ScoutEngineImpl implements Engine {
     private static final int CHECK_EXTENSION = 8;
 
     /*
-     * variables used in a search () maxDepth is the MaxDepth to search (minimum of ABSOLUTE_MAX_DEPTH-20 (for qsearch)
+     * variables used in a search () maxDepth is the MaxDepth to search (minimum of ABSOLUTE_MAX_DEPTH-MAX_DEPTH_MARGIN (for qsearch)
      * and a user defined value) () currentDepth is the current iteration of iterative deepening. ()
      * selectiveSearchDepth is the dynamic depth to search a branch in the tree (starting at currentDepth*ONE_PLY and
      * influenced by extentions and reductions) () searchIteration is the iteration of the search (useful to keep track
-     * of how thorough the search was (and accurate a score is) () principalVariation is the currently active PV ()
+     * of how thorough the search was (and accurate a score is) ()
      * killer1 and killer2 are two slots to keep killer moves at each depth for move ordering
      */
-    private int maxDepth = ABSOLUTE_MAX_DEPTH - 20;
+    private int maxDepth = ABSOLUTE_MAX_DEPTH - MAX_DEPTH_MARGIN;
     private int currentDepth = 0;
     private int selectiveSearchDepth = 0;
     private int searchIteration = 0;
@@ -158,6 +159,7 @@ public class ScoutEngineImpl implements Engine {
         // initialize Statistics - at the real root of our tree.
         statistics = new SearchStatistics();
         lastThoughtLine = null;
+        tt.increaseAge();
 
         // We're thinking again!
         stopEngine = false;
@@ -930,7 +932,7 @@ public class ScoutEngineImpl implements Engine {
 
     @Override
     public void setMaxDepth(int depth) {
-        maxDepth = Math.min(depth, ABSOLUTE_MAX_DEPTH - 20);
+        maxDepth = Math.min(depth, ABSOLUTE_MAX_DEPTH - MAX_DEPTH_MARGIN);
     }
 
     @Override
