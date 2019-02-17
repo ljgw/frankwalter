@@ -62,7 +62,7 @@ public class Constants {// NOSONAR
     //http://talkchess.com/forum3/viewtopic.php?f=7&t=47373 - so it might improve with a bucket system voor TT.
     public static final boolean TT_IN_QSEARCH = true;
 
-    public static final boolean QUICK_ASPIRATION_RESEARCH = false;
+    public static final boolean QUICK_ASPIRATION_RESEARCH = true;
 
     private static final String ENGINE_NAME = "FrankWalter";
     private static final String VERSION_DEFAULT = "version";

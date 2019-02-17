@@ -34,7 +34,7 @@ public class TranspositionTableQuadArrayImpl implements TranspositionTable {
 
 	public TranspositionTableQuadArrayImpl(int magnitude){
 		this.magnitude = magnitude;
-		this.mask = (1 << (magnitude-2)) -1;
+		this.mask = (1 << (magnitude-2)) -1L;
 		this.inverseMask = ~mask;
 		initTable();
 	}

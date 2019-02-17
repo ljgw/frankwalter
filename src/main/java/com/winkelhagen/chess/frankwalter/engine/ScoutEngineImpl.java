@@ -378,16 +378,11 @@ public class ScoutEngineImpl implements Engine {
 
                 // When we get here: we assume that the window is to narrow.
                 logger.info("first move in aspiration window [{}, {}] failed low {}. Researching with a wider window", alpha, beta, score);
-                move.setScore(score);
-                move.setDepth(searchIteration);
-                Collections.sort(list);
                 return;
             }
 
-            // record the score and update statistics
-            // if the score is less than the originalAlpha-moveCount, use the originalAlpha-moveCount score.
-            // this ensures that when the aspiration window returns a lower score, the result of the previous depth is used.
             // todo: investigate better system for ScoredMove
+            //if any move fails lower than the original alpha, prefer the original order
             move.setScore(Math.max(score, originalAlpha-moveCount));
             move.setDepth(searchIteration);
 
@@ -407,8 +402,6 @@ public class ScoutEngineImpl implements Engine {
                 if (score > alpha) {
                     // if the score is equal to, or exceeds, beta we can cut-off now!
                     if (score >= beta) {
-                        Collections.sort(list);
-                        //as we will probably execute this move, it makes no sense to add it to killers
                         Collections.sort(list);
                         return;
                     }
