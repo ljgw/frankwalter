@@ -47,6 +47,7 @@ public class GameController implements Runnable {
     private boolean ponder = false;
     private volatile int pondering = 0;
     private volatile boolean newlyInitializedGame = false;
+    private volatile long endPonderTime;
 
     private enum Command {
         INIT, GO, PLAY_OTHER, CMD, SYNC, MOVE, STOP, PONDER, PING
@@ -106,6 +107,14 @@ public class GameController implements Runnable {
 
     @Override
     public void run() {
+        try {
+            runLoop();
+        } catch (RuntimeException re){
+            LOGGER.error("unexpected runtime exception", re);
+        }
+    }
+
+    private void runLoop() {
         while (running){
             try {
                 QueuedCommand command = commandQueue.take();
@@ -135,11 +144,9 @@ public class GameController implements Runnable {
                         break;
                     case PLAY_OTHER:
                         forceMode = false;
-                        fwConfig.timedSearchStarter.setPonderAllowed(true);
                         doPonder();
                         break;
                     case PONDER:
-                        fwConfig.timedSearchStarter.setPonderAllowed(true);
                         doPonder();
                         break;
                     case CMD:
@@ -157,7 +164,7 @@ public class GameController implements Runnable {
                         checkGameStatus();
                         if (!forceMode) {
                             doGo(command.millis);
-                            if (ponder){
+                            if (ponder && !forceMode){
                                 doPonder();
                             }
                         }
@@ -292,8 +299,8 @@ public class GameController implements Runnable {
                     if (move == pondering) {
                         LOGGER.debug("ponder-hit");
                         pondering = 0;
-                        fwConfig.timedSearchStarter.setPonderAllowed(false);
-                        fwConfig.timedSearchStarter.setTimeRemaining(gameTimer.calculateTime(fwConfig.board.getFullMoves(), 0));
+                        endPonderTime = System.currentTimeMillis();
+                        fwConfig.timedSearchStarter.disallowPonder(true);
                     } else {
                         //pondering must have stopped recently
                         commandQueue.add(new QueuedCommand(Command.MOVE, userMove));
@@ -304,7 +311,8 @@ public class GameController implements Runnable {
                     if (pondering > 0) {
                         LOGGER.debug("ponder-miss");
                     }
-                    stopPondering();
+                    fwConfig.engine.forceStop();
+                    fwConfig.timedSearchStarter.disallowPonder(false);
                 });
                 commandQueue.add(new QueuedCommand(Command.MOVE, userMove));
             }
@@ -342,12 +350,12 @@ public class GameController implements Runnable {
 
     //st
     public void setTimeSingleMove(final double time) {
-        commandQueue.add(new QueuedCommand(Command.CMD, "st: " + time, () -> gameTimer.setTimeSingleMove(time)));
+        commandQueue.add(new QueuedCommand(Command.CMD, "st: " + time, () -> {gameTimer.setTimeSingleMove(time);fwConfig.timedSearchStarter.setUseStrictTime(true);}));
     }
 
     //level
     public void parseLevel(final String fullMovesPerSession, final String time, final String inc) {
-        commandQueue.add(new QueuedCommand(Command.CMD, String.format("level: %s %s %s", fullMovesPerSession, time, inc), () -> doParseLevel(fullMovesPerSession, time, inc)));
+        commandQueue.add(new QueuedCommand(Command.CMD, String.format("level: %s %s %s", fullMovesPerSession, time, inc), () -> {doParseLevel(fullMovesPerSession, time, inc);fwConfig.timedSearchStarter.setUseStrictTime(false);}));
     }
 
     /*
@@ -355,6 +363,8 @@ public class GameController implements Runnable {
      */
 
     private void doGo(long millis) {
+        long startTime = System.currentTimeMillis();
+        int startOwnTime = gameTimer.getOwnTime();
         int move = doThink(millis);
         if (move == 0) {
             forceMode = true;
@@ -364,6 +374,8 @@ public class GameController implements Runnable {
             MV.outputMove(move);
             checkGameStatus();
         }
+        int thinkingTime = (int)(System.currentTimeMillis()-startTime);
+        gameTimer.setTentativeOwnTimeForNextMove(startOwnTime-thinkingTime, fwConfig.board.getFullMoves());
     }
 
     private void doParseLevel(String fullMovesPerSessionString, String timeString, String incString){
@@ -410,13 +422,21 @@ public class GameController implements Runnable {
             } else {
                 pondering = MV.toBasicMove(MV.toString(ponderMove));
             }
-            int move = fwConfig.timedSearchStarter.getBestMove(true, -1, new HashSet<>());
+            //calculate time to move based on tentativeOwnTime (set after thinking) or ownTime (set after usermove)
+            long timeToMove = gameTimer.calculateTime((fwConfig.board.getFullMoves()), 0L);
+            int move = fwConfig.timedSearchStarter.getBestMove(true,  timeToMove, new HashSet<>());
+            int startOwnTime = gameTimer.getOwnTime(); //set by time command
             doUnderLock(() -> {
                 LOGGER.debug("move after ponder: {} (pondering = {})", MV.toString(move), pondering);
                 if (move>0 && pondering==0){
+                    int thinkingTime = (int)(System.currentTimeMillis()-endPonderTime);
                     fwConfig.board.doSingleMove(move);
                     MV.outputMove(move);
                     checkGameStatus();
+                    gameTimer.setTentativeOwnTimeForNextMove(startOwnTime-thinkingTime, fwConfig.board.getFullMoves());
+                    if (ponder && !forceMode){
+                        commandQueue.add(new QueuedCommand(Command.PONDER));
+                    }
                 } else {
                     fwConfig.board.undoSingleMove();
                 }
@@ -488,7 +508,6 @@ public class GameController implements Runnable {
         if (move == 0) {
             move = findTableBaseMove();
         }
-        fwConfig.timedSearchStarter.setPonderAllowed(true);
         if (move == 0) {
             move = fwConfig.timedSearchStarter.getBestMove(false, gameTimer.calculateTime(fwConfig.board.getFullMoves(), System.currentTimeMillis() - commandTime), new HashSet<>());
         }
@@ -542,7 +561,7 @@ public class GameController implements Runnable {
     }
 
     private void stopPondering() {
-        fwConfig.timedSearchStarter.setPonderAllowed(false);
+        fwConfig.timedSearchStarter.stopPondering();
         fwConfig.engine.forceStop();
     }
 

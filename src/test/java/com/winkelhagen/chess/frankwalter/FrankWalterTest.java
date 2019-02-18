@@ -20,6 +20,7 @@ package com.winkelhagen.chess.frankwalter;
 import com.winkelhagen.chess.frankwalter.ci.OutputPrinter;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.*;
@@ -35,7 +36,7 @@ import static org.junit.Assert.*;
 public class FrankWalterTest {
 
     //explicitly not using a book
-    private static final String[] ARGS = {"-nobook"};
+    private static final String[] ARGS = {"-nobook", "-tt", "16mb"};
     private InputStream originalStdin;
     private PrintStream originalStdout;
     private PipedOutputStream testStdin;

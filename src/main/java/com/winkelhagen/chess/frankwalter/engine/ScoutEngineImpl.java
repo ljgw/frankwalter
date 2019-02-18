@@ -114,12 +114,16 @@ public class ScoutEngineImpl implements Engine {
     private int[][] historyBetaCut = new int[2][4096];
 
     /*
-     * flags used in the engine stopEngine if it becomes true: stop the engine as quickly as possible. (mate move found,
+     * flags used in the engine hardStopEngine if it becomes true: stop the engine as quickly as possible. (mate move found,
      * or a forced move) showThinking to comply with the winboard option to not show thinking mateVerification turn on for
      * mate verification researches - no null-move, no cuts from TT, no eval. usedNull flag set
      * so that we wont try two null moves in a row
      */
-    private volatile boolean stopEngine = true;
+    private volatile boolean hardStopEngine = true;
+    private volatile boolean allowStopEngine = true;
+    private boolean panic = false;
+    private boolean allowPanic = true;
+
 
     private boolean showThinking = true;
 
@@ -132,6 +136,8 @@ public class ScoutEngineImpl implements Engine {
     private SearchStatistics statistics = null;
 
     private ThoughtLine lastThoughtLine;
+    private int[] bestMove = new int[ABSOLUTE_MAX_DEPTH];
+    private int[] bestScore = new int[ABSOLUTE_MAX_DEPTH];
 
     @Override
     public int getBestMoveFromTT(){
@@ -146,11 +152,11 @@ public class ScoutEngineImpl implements Engine {
 
     /**
      * Starting point of our searches. Wraps the actual search to fix errors in case of incidents such as
-     * 
+     *
      * () searches where positions with more than {@value Board#ABSOLUTE_MAX_MOVES} can occur.
-     * 
+     *
      * After the search SearchStatistic will be available (until a new search comes)
-     * 
+     *
      * @return the best move
      */
     @Override
@@ -162,7 +168,10 @@ public class ScoutEngineImpl implements Engine {
         tt.increaseAge();
 
         // We're thinking again!
-        stopEngine = false;
+        allowStopEngine = false;
+        hardStopEngine = false;
+        panic = false;
+        allowPanic = true;
         synchronized (SYNC_OBJECT) {
             SYNC_OBJECT.notifyAll();
         }
@@ -171,10 +180,11 @@ public class ScoutEngineImpl implements Engine {
         usedNull[nullCount] = -1;
         searchIteration = 0;
 
-        // Reset PV and killers (consider reuse?)
+        // Reset PV and killers
         principalVariation = new int[12];
         killer1 = new int[ABSOLUTE_MAX_DEPTH];
         killer2 = new int[ABSOLUTE_MAX_DEPTH];
+        bestMove = new int[ABSOLUTE_MAX_DEPTH];
         degradeHistory();
 
         // Setup the possible moves.
@@ -194,23 +204,23 @@ public class ScoutEngineImpl implements Engine {
         }
 
         // Iterative deepening until the engine is stopped or at max depth.
-        int depth = 1;
+        currentDepth = 1;
+
 
         // While the engine is not stopped (mate / forced move / out of time) and we're not at maxDepth
-        while (!stopEngine && depth != maxDepth) {
-            
+        while (!isEngineAllowedToStop() && currentDepth != maxDepth) {
+
             // Adjust searching depth
-            currentDepth = depth++;
             selectiveSearchDepth = currentDepth * ONE_PLY;
 
             // start the search upto the above selectiveSearchDepth
             startSearchPVS(list);
 
 
-            // stopEngine means out-of-time or forced move. In the first case we cannot be sure that the current move is
+            // hardStopEngine means out-of-time or forced move. In the first case we cannot be sure that the current move is
             // the head of the PV: so we don't print it.
             // also, we don't verify mate
-            if (!stopEngine) {
+            if (!hardStopEngine) {
                 lastThoughtLine = generateThoughtLine(list);
 
                 //Currently only when we mate. When we are mated we don't verify but search deeper. (todo??)
@@ -229,8 +239,16 @@ public class ScoutEngineImpl implements Engine {
                 }
                 statistics.thoughtLines.add(lastThoughtLine);
             }
-
+            bestMove[currentDepth] = list.get(0).getMove();
+            bestScore[currentDepth] = list.get(0).getScore();
+            //todo: we panic too much
+            if (currentDepth>6) {
+                panic = (bestScore[currentDepth - 1] - bestScore[currentDepth]) > Constants.SCORE_DROP_PANIC_THRESHOLD
+                        || (bestScore[currentDepth - 2] - bestScore[currentDepth]) > Constants.SCORE_DROP_PANIC_THRESHOLD;
+            }
+            currentDepth++;
         }
+        hardStopEngine = true;
 
         // Log some statistics
         statistics.stop(MV.toString(list.get(0).getMove()));
@@ -238,6 +256,32 @@ public class ScoutEngineImpl implements Engine {
         // set stopengine because we're done for now.
         // Return the best move.
         return list.get(0).getMove();
+    }
+
+    private boolean isEngineAllowedToStop() {
+        //the engine must stop after a certain time, but only if
+        // * this is allowed
+        // * the bestMove is the same as the search iteration before
+        // * the bestMove is clearly better than the secondbest move. (TODO)
+        // * no drop in value over the last few iterations
+        // * (or) the bestMove is 'easy'
+        //or if there is a hard stop
+        if (hardStopEngine){
+            logger.debug("hardstopping engine");
+            return hardStopEngine;
+        }
+        if (allowStopEngine){
+            if (!allowPanic){
+                return true;
+            }
+            if (panic){
+                logger.debug("extending time once because of a scoredrop");
+                allowPanic = false;
+                return false;
+            }
+            return true;
+        }
+        return false;
     }
 
     private ThoughtLine generateThoughtLine(List<ScoredMove> list) {
@@ -250,7 +294,7 @@ public class ScoutEngineImpl implements Engine {
 
     private int checkForMate(List<ScoredMove> list) {
         // If we have a mate-score, we can stop thinking.
-        if (!stopEngine && isMateMove(list.get(0))) {
+        if (!hardStopEngine && isMateMove(list.get(0))) {
             //TODO: separate search for quick mate? Maybe just think a ply deeper with mate boundary?
 
             mapTTonPV(list.get(0).getMove(), 0);
@@ -258,7 +302,7 @@ public class ScoutEngineImpl implements Engine {
             int depth = -MATED - Math.abs(list.get(0).getScore());
             logger.debug("Mate pv: " + MV.toString(principalVariation, null));
             logger.info("mate cut-off, depth = {}", (depth+1)/2);
-            stopEngine = true;
+            hardStopEngine = true;
             return (depth+1)/2;
         }
         return -1;
@@ -322,7 +366,7 @@ public class ScoutEngineImpl implements Engine {
             int tbeta = approximateScore + ASPIRATION_WINDOW;
             startPVS(list, talpha, tbeta);
             //todo: do not allow aspiration results outside the window to give the best move.
-            if (stopEngine) {
+            if (hardStopEngine) {
                 return;
             }
             // if the new bestmove-score falls outside of the window, do a full re-search
@@ -343,6 +387,7 @@ public class ScoutEngineImpl implements Engine {
         // than those recorded in previous calls
         searchIteration++;
         statistics.nodecount++;
+        boolean isExact = false;
 
         // Loop through all moves (if we search within a window, we cut-off at a score equal or exceeding beta)
         for (ScoredMove move : list) {
@@ -366,8 +411,8 @@ public class ScoutEngineImpl implements Engine {
             // Undo Move
             board.undoMove();
 
-            // if we exit a search and stopEngine == true: we didn't finish this search so we cannot use this score.
-            if (stopEngine) {
+            // if we exit a search and hardStopEngine == true: we didn't finish this search so we cannot use this score.
+            if (hardStopEngine) {
                 Collections.sort(list);
                 return;
             }
@@ -400,9 +445,12 @@ public class ScoutEngineImpl implements Engine {
                 }
                 // if the score exceeds alpha, we can cut-off earlier in subsequent scout searches
                 if (score > alpha) {
+                    isExact = true;
                     // if the score is equal to, or exceeds, beta we can cut-off now!
                     if (score >= beta) {
                         Collections.sort(list);
+                        statistics.betacut++;
+                        tt.setEntry(board.getHashKey(), score, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.FAIL_HIGH, 0);
                         return;
                     }
                     alpha = score;
@@ -414,11 +462,16 @@ public class ScoutEngineImpl implements Engine {
 
         // Before we finish, we sort the moves based on score, only looking at the most current scores
         Collections.sort(list);
+        if (isExact) {
+            tt.setEntry(board.getHashKey(), bestScoreSoFar, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.EXACT, 0);
+        } else {
+            tt.setEntry(board.getHashKey(), bestScoreSoFar, (short)selectiveSearchDepth, Constants.SAVE_BEST_FAIL_LOW?list.get(0).getMove():0, Entry.FAIL_LOW, 0);
+        }
 
         // in case of only one move, do it.
         if (moveCount == 1) {
             logger.debug("forced move!");
-            stopEngine = true;
+            hardStopEngine = true;
         }
 
     }
@@ -453,7 +506,6 @@ public class ScoutEngineImpl implements Engine {
 
         // check for 2fold? check elsewhere, rep draw might be worth directing the FW to.. (or from!!) yes!!
         if (board.checkForSingleRepetitions()) {
-            // TODO: implement contempt
             return Evaluator.getContemptScore();
         }
 
@@ -615,7 +667,7 @@ public class ScoutEngineImpl implements Engine {
             }
 
             // stop the engine if needed.
-            if (stopEngine) {
+            if (hardStopEngine) {
                 return bestScoreSoFar;
             }
         }
@@ -940,12 +992,17 @@ public class ScoutEngineImpl implements Engine {
 
     @Override
     public void forceStop() {
-        stopEngine = true;
+        hardStopEngine = true;
+    }
+
+    @Override
+    public void allowStop() {
+        allowStopEngine = true;
     }
 
     @Override
     public boolean isRunning() {
-        return (!stopEngine);
+        return (!hardStopEngine);
     }
 
     @Override

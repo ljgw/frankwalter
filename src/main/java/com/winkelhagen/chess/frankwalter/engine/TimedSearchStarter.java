@@ -30,26 +30,25 @@ public class TimedSearchStarter implements Runnable {
     private static final Logger logger = LogManager.getLogger();
     private Engine engine;
     private long sleepToTime;
+    private long sleepToTimeOptimistic;
     private volatile boolean ponder;
+    private volatile boolean ponderDisallowed = false;
+    private volatile boolean ponderHit = false;
 
     private final Thread waker;
-    private volatile boolean ponderAllowed = false;
+    private boolean useStrictTime = false;
 
 
-    /**
-     * sets the remaining time to think for a running search.
-     *
-     * @param thinkingTime the time at to remain searching
-     */
-    public void setTimeRemaining(long thinkingTime) {
-        this.sleepToTime = (System.currentTimeMillis() + thinkingTime);
-        logger.debug("Need to make a move within {} ms now.", thinkingTime);
-
-        engine.showLastThoughtLine();
+    public void disallowPonder(boolean ponderHit) {
+        if (ponderHit){
+            engine.showLastThoughtLine();
+            this.ponderHit = true;
+        }
+        ponderDisallowed = true;
         stopPondering();
     }
 
-    private void stopPondering() {
+    public void stopPondering(){
         this.ponder = false;
         synchronized (SYNC_OBJECT) {
             SYNC_OBJECT.notifyAll();
@@ -66,27 +65,34 @@ public class TimedSearchStarter implements Runnable {
      * @return an int representing the best move. ({@link Engine#getBestMove(Set)}
      */
     public int getBestMove(boolean ponder, long thinkingTime, Set<Integer> avoidMoves) {
-        if (ponder && !ponderAllowed){
-            logger.debug("ponder not allowed now");
-            return 0;
-        }
+        this.ponder = ponder;
         long systemTime = System.currentTimeMillis();
-        if (ponder && sleepToTime > systemTime){
-            logger.debug("already a ponder-hit, not pondering");
-            ponder = false;
-            thinkingTime = sleepToTime - systemTime;
+        if (this.ponder && ponderDisallowed){
+            logger.debug("ponder, not pondering");
+            if (ponderHit){
+                //ponder hit, so do think from this position
+                this.ponder = false;
+            } else {
+                ponderDisallowed = false;
+                return 0;
+            }
         }
 
         logger.debug("Need to make a move within {} ms.", thinkingTime);
 
         // Set an alarm
-        if (!ponder) {
+        if (ponder) {
+            sleepToTimeOptimistic = (systemTime + thinkingTime);
+            sleepToTime = (systemTime + thinkingTime);
+        } else {
+            sleepToTimeOptimistic = (systemTime + (thinkingTime / 2));
             sleepToTime = (systemTime + thinkingTime);
         }
-        this.ponder = ponder;
 
         // Find the actual move (this also causes the thread to stop waiting, if ponder is false)
         int move = engine.getBestMove(avoidMoves);
+        ponderDisallowed = false;
+        ponderHit = false;
 
         waker.interrupt(); //might be a forced move, so waker might be sleeping.
         return move;
@@ -105,25 +111,51 @@ public class TimedSearchStarter implements Runnable {
 
     @Override
     public void run() {
+        try {
+            runLoop();
+        } catch (RuntimeException re){
+            logger.error("unexpected runtime exception", re);
+        }
+    }
+
+    private void runLoop() {
         while (true) { //NOSONAR
+            long ponderTime = 0;
             try {
-                //first, wait until the engine is running, if needed.
                 synchronized (SYNC_OBJECT) {
-                    while (!engine.isRunning() || (ponderAllowed && ponder)) {
-                        logger.debug("engine is not running or we're in ponder: waiting");
+                    //first, wait until the engine is running, if needed.
+                    while (!engine.isRunning()) {
+                        logger.debug("engine is not running: waiting");
                         SYNC_OBJECT.wait();
-                        logger.debug("engine was not running: notified");
+                        logger.debug("engine is running");
                     }
-                    if (ponder && !ponderAllowed) {
-                        logger.debug("pondering was requested, but not allowed");
+                    //if we ponder, also wait.
+                    while (ponder) {
+                        logger.debug("we're in ponder: waiting");
+                        long ponderTimeStart = System.currentTimeMillis();
+                        SYNC_OBJECT.wait();
+                        ponderTime += (System.currentTimeMillis() - ponderTimeStart);
+                        logger.debug("ponder is done");
                     }
                 }
-                long sleepTime = (sleepToTime - System.currentTimeMillis());
+                //if not using a fixed time per move, we want to not waste time thinking about moves that are certain to be played.
+                if (!useStrictTime) {
+                    long sleepTime = (sleepToTimeOptimistic - System.currentTimeMillis());
+                    if (sleepTime > 0) {
+                        logger.debug("allowing engine to stop in {} ms", sleepTime);
+                        Thread.sleep(sleepTime);
+                    } else {
+                        logger.debug("allowing engine to stop because sleepTime ({}) is zero or negative", sleepTime);
+                    }
+                    engine.allowStop();
+                }
+                //todo: increase this non-optimistic sleepToTime based on the time spent pondering.
+                long sleepTime = (sleepToTime - System.currentTimeMillis()) + ponderTime;
                 if (sleepTime > 0) {
-                    logger.debug("stopping engine in {} ms", sleepTime);
+                    logger.debug("stopping engine in {} ms (pondertime was {})", sleepTime, ponderTime);
                     Thread.sleep(sleepTime);
                 } else {
-                    logger.debug("not sleeping because sleepTime ({}) is zero or negative", sleepTime);
+                    logger.debug("stopping engine because sleepTime ({}, ponderTime was {}) is zero or negative", sleepTime, ponderTime/2);
                 }
                 engine.forceStop();
             } catch (InterruptedException ie) { //NOSONAR
@@ -132,7 +164,7 @@ public class TimedSearchStarter implements Runnable {
         }
     }
 
-    public void setPonderAllowed(boolean ponderAllowed) {
-        this.ponderAllowed = ponderAllowed;
+    public void setUseStrictTime(boolean useStrictTime) {
+        this.useStrictTime = useStrictTime;
     }
 }

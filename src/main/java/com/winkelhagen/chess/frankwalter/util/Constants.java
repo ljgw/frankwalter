@@ -53,6 +53,8 @@ public class Constants {// NOSONAR
     public static final int NO_SQUARE = -1;
     public static final int MULTIPLE_SQUARES = 64;
 
+    public static final int SCORE_DROP_PANIC_THRESHOLD = 50;
+
     public static final boolean SAVE_BEST_FAIL_LOW = false;
 
     public static final boolean LAZY_EVAL = true;

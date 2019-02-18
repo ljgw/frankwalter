@@ -65,7 +65,7 @@ public class SearchStatistics {
     public void stop(String move) {
         long duration = new GregorianCalendar().getTimeInMillis() - starttime;
         if (LOG.isInfoEnabled()) {
-            LOG.info("Made move {} in {} millis.", move, duration);
+            LOG.info("Found move {} in {} millis.", move, duration);
             LOG.info("Nodecount: {}: (with {} betacuts).", nodecount, betacut);
             LOG.info("Quietnodes: {} with {} betacuts.", qnodecount, qbetacut);
             LOG.info("TranspositionTable: +{}/-{}.", tthits, ttfails);

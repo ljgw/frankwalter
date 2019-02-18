@@ -103,4 +103,6 @@ public interface Engine {
     boolean isRunning();
 
     void showLastThoughtLine();
+
+    void allowStop();
 }
