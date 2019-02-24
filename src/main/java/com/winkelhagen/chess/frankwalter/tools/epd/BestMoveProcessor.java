@@ -41,6 +41,7 @@ public class BestMoveProcessor extends EpdProcessor {
     public BestMoveProcessor(int millisToSolve, String id){
         super(id);
         this.millisToSolve = millisToSolve;
+        fwConfig.timedSearchStarter.setUseStrictTime(true);
     }
 
     @Override

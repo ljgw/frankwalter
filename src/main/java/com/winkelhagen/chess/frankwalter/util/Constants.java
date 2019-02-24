@@ -53,6 +53,8 @@ public class Constants {// NOSONAR
     public static final int NO_SQUARE = -1;
     public static final int MULTIPLE_SQUARES = 64;
 
+    public static final int SCORE_DROP_PANIC_THRESHOLD = 50;
+
     public static final boolean SAVE_BEST_FAIL_LOW = false;
 
     public static final boolean LAZY_EVAL = true;
@@ -61,8 +63,6 @@ public class Constants {// NOSONAR
 
     //http://talkchess.com/forum3/viewtopic.php?f=7&t=47373 - so it might improve with a bucket system voor TT.
     public static final boolean TT_IN_QSEARCH = true;
-
-    public static final boolean QUICK_ASPIRATION_RESEARCH = false;
 
     private static final String ENGINE_NAME = "FrankWalter";
     private static final String VERSION_DEFAULT = "version";

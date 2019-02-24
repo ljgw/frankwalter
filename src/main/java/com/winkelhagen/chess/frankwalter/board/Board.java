@@ -82,7 +82,7 @@ public class Board {
     private int castleMask = 15;
 
     private int ply = 0;
-    private int fullMoves = 0;
+    private int fullMoves = 1;
 
     private int[] kings = { 0, 0 };
     private long pinsWhite = 0;
@@ -121,7 +121,7 @@ public class Board {
         pinsWhite = 0;
         pinsBlack = 0;
         zobrist.reset();
-        fullMoves = 0;
+        fullMoves = 1;
         occupied = 0;
         pieces = new long[2][7];
         sideToMove = Constants.WHITE;
@@ -145,9 +145,11 @@ public class Board {
             fullMoves++;
         }
         doMove(move);
+        logger.debug("executed full move {} - ply {}", fullMoves, ply);
     }
 
     public void undoSingleMove() {
+        logger.debug("retracting full move {} - ply {}", fullMoves, ply);
         if (ply > 0) {
             undoMove();
             if (sideToMove == Constants.BLACK)

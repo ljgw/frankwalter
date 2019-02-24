@@ -17,14 +17,9 @@
  */
 package com.winkelhagen.chess.frankwalter;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-/**
- * Created by laurens on 19-12-16 for frankwalter.
- */
 public class GameTimer {
 
+    private int baseTime = 300000;
     private int ownTime = 300000;
     private int otherTime = 300000;
     private int fullMovesPerSession = 40;
@@ -52,7 +47,7 @@ public class GameTimer {
      */
     public void parseLevel(int fullMovesPerSession, double time, double inc) {
         this.fullMovesPerSession = fullMovesPerSession;
-        int baseTime = (int)(time * 1000);
+        this.baseTime = (int)(time * 1000);
         this.incTime = (int)(inc * 1000);
         ownTime = baseTime;
         otherTime = baseTime;
@@ -76,10 +71,10 @@ public class GameTimer {
         ownTime -= delay;
         if (singleMove) {
             return calculateTimeFixedForMove();
-        } else if (fullMovesPerSession == 0) {
-            return calculateTimeFixedForGame(fullMoves);
-        } else {
+        } else if (isSessionTimeControl()) {
             return calculateTimeForSession(fullMoves);
+        } else {
+            return calculateTimeFixedForGame(fullMoves);
         }
     }
 
@@ -90,17 +85,23 @@ public class GameTimer {
      * @return the time in millis that we're going to think.
      */
     private int calculateTimeForSession(int fullMoves) {
-        int movesLeft = fullMovesPerSession - fullMoves;
-        while (movesLeft < 1) {
-            movesLeft += fullMovesPerSession;
-        }
+        int movesLeftInSession = getMovesLeftInSession(fullMoves);
 
-        int returnTime = (ownTime-incTime) / (movesLeft + 2) + incTime;
+        int suggestedRealTime = (ownTime-(incTime + Math.min(1000, baseTime/fullMovesPerSession))) / movesLeftInSession;
+        int returnTime = suggestedRealTime*125/100 + incTime;
         if (returnTime > (ownTime - 100)) {
             return ownTime / 2;
         } else {
             return returnTime;
         }
+    }
+
+    private int getMovesLeftInSession(int fullMoves) {
+        int movesLeftInSession = fullMovesPerSession - (fullMoves-1);
+        while (movesLeftInSession <= 0) {
+            movesLeftInSession += fullMovesPerSession;
+        }
+        return movesLeftInSession;
     }
 
     /**
@@ -122,19 +123,33 @@ public class GameTimer {
         if (fullMoves > 30 && ownTime > otherTime) {
             factor = 20;
         }
-        if (incTime > 100){
-            return Math.min(((ownTime-incTime) / factor) + incTime-100, ownTime-100);
-        } else {
-            return ((ownTime-incTime) / factor);
-        }
+        int suggestedRealTime = ((ownTime-incTime) / factor);
+        return Math.min(suggestedRealTime*125/100 + incTime-100, ownTime-100);
     }
 
     public void setOwnTime(int ownTime) {
         this.ownTime = ownTime * 10;
+    }
+    public int getOwnTime(){
+        return ownTime;
     }
 
     public void setOtherTime(int otherTime) {
         this.otherTime = otherTime * 10;
     }
 
+    public void setTentativeOwnTimeForNextMove(int tentativeOwnTime, int fullMoves) {
+        ownTime = tentativeOwnTime;
+        ownTime += incTime;
+        if (isSessionTimeControl() && newSessionStarts(fullMoves)){
+            ownTime += baseTime;
+        }
+    }
+
+    private boolean isSessionTimeControl(){
+        return fullMovesPerSession != 0;
+    }
+    private boolean newSessionStarts(int fullMoves) {
+        return getMovesLeftInSession(fullMoves)==fullMovesPerSession;
+    }
 }
