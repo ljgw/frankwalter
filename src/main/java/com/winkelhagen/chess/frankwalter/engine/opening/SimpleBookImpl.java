@@ -18,6 +18,7 @@
 package com.winkelhagen.chess.frankwalter.engine.opening;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -91,7 +92,7 @@ public class SimpleBookImpl implements Book {
                 return moves[i];
             }
         }
-        logger.error("bookchoice was bad!");
+        logger.warn("bookchoice was bad! total: {}, probabilities: {}", probabilitiesTotal, Arrays.toString(probabilities));
         return 0;
     }
     
@@ -105,13 +106,13 @@ public class SimpleBookImpl implements Book {
         boolean fileFound = true;
         InputStream in = this.getClass().getResourceAsStream(bookName);
         if (!bookFile.exists()){
-            logger.info("book '{}' does not exist.", bookName);
+            logger.info("filesystem book '{}' does not exist.", bookName);
             if (in==null) {
                 return false;
             }
             fileFound = false;
         } else if (!bookFile.isFile()){
-            logger.info("book '{}' is not a file.", bookName);
+            logger.info("filesystem book '{}' is not a file.", bookName);
             if (in==null){
                 return false;
             }

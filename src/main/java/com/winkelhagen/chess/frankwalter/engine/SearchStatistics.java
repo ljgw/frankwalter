@@ -64,14 +64,14 @@ public class SearchStatistics {
      */
     public void stop(String move) {
         long duration = new GregorianCalendar().getTimeInMillis() - starttime;
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Found move {} in {} millis.", move, duration);
-            LOG.info("Nodecount: {}: (with {} betacuts).", nodecount, betacut);
-            LOG.info("Quietnodes: {} with {} betacuts.", qnodecount, qbetacut);
-            LOG.info("TranspositionTable: +{}/-{}.", tthits, ttfails);
-            LOG.info("Tablebase hits: {}",tbhits);
-            LOG.info("IDD Count: {}.", iddcount);
-            LOG.info("Nullmoves: {} {} {}. Nullmoves: {}/{}.", nonull, onenull, morenull, nullMoves, nullMoveTries);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Found move {} in {} millis.", move, duration);
+            LOG.debug("Nodecount: {}: (with {} betacuts).", nodecount, betacut);
+            LOG.debug("Quietnodes: {} with {} betacuts.", qnodecount, qbetacut);
+            LOG.debug("TranspositionTable: +{}/-{}.", tthits, ttfails);
+            LOG.debug("Tablebase hits: {}",tbhits);
+            LOG.debug("IDD Count: {}.", iddcount);
+            LOG.debug("Nullmoves: {} {} {}. Nullmoves: {}/{}.", nonull, onenull, morenull, nullMoves, nullMoveTries);
         }
     }
 

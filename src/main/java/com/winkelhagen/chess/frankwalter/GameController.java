@@ -41,6 +41,9 @@ import java.util.concurrent.*;
  *
  * Another goal of the GameController class is to make sure pondering works correctly, preventing a perpetual ponder where pondering might be initiated at the same time as the 'usermove' command is received.
  */
+//TODO refactor so that all commands are executed in realtime (registering ping to output after search)
+    // modify a master board (which is copied for each search thread)
+    // only have one thread interact with search
 public class GameController implements Runnable {
 
     private GameTimer gameTimer = new GameTimer();
@@ -286,6 +289,7 @@ public class GameController implements Runnable {
 
     //move .... (stop pondering if pondering)
     public void userMove(String userMove) {
+        //todo: after refactor - verify usermove
         int move = MV.toBasicMove(userMove);
         if (forceMode){
             LOGGER.debug("forcing usermove {}", userMove);
@@ -391,7 +395,7 @@ public class GameController implements Runnable {
                 timeSeconds += Double.parseDouble(timeSubStrings[1]);
             }
         } catch (NumberFormatException nfe) {
-            LOGGER.error("couldn't parse {} {} {} as 'moves [mm:]ss increment'", fullMovesPerSessionString, timeString, incString);
+            LOGGER.warn("couldn't parse {} {} {} as 'moves [mm:]ss increment'", fullMovesPerSessionString, timeString, incString);
             timeSeconds = 300d;
             fullMovesPerSession = 40;
             inc = 0d;
@@ -524,7 +528,7 @@ public class GameController implements Runnable {
             //TODO: instead of blindly going for the TB move, first do a small search without TB to see if there is a quick mate.
             int tbMove = Syzygy.toMove(result);
             int score = Syzygy.toXBoardScore(result);
-            LOGGER.info("tablebases returned {} with score {}", MV.toString(tbMove), score);
+            LOGGER.debug("tablebases returned {} with score {}", MV.toString(tbMove), score);
             if (fwConfig.engine.getShowThinking()){
                 ThoughtLine thoughtLine = new ThoughtLine(score, tbMove);
                 OutputPrinter.printObjectOutput(thoughtLine);

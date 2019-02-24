@@ -41,7 +41,7 @@ public class XBoardInterface extends AbstractInterface {
 
     @Override
     protected void userInputLoop() {
-        logger.info("Started Userinterface");
+        logger.debug("Started Userinterface");
         game.startEngineLoop();
         state = STATE_STARTING;
         while (state != STATE_OFF) {
@@ -56,13 +56,13 @@ public class XBoardInterface extends AbstractInterface {
             try {
                 processUserInput(userInput);
             } catch (RuntimeException rte) {
-                logger.error("Error (malformatted command): {}", userInput);
+                logger.warn("Error (malformatted command): {}", userInput);
                 logger.debug(rte);
             }
         }
 
         game.stopEngineLoop();
-        logger.info("Stopped Userinterface");
+        logger.debug("Stopped Userinterface");
     }
 
     private void processUserInput(String userInput) {

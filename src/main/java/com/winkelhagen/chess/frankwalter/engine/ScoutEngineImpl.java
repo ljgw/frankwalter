@@ -301,7 +301,7 @@ public class ScoutEngineImpl implements Engine {
 
             int depth = -MATED - Math.abs(list.get(0).getScore());
             logger.debug("Mate pv: " + MV.toString(principalVariation, null));
-            logger.info("mate cut-off, depth = {}", (depth+1)/2);
+            logger.debug("mate cut-off, depth = {}", (depth+1)/2);
             hardStopEngine = true;
             return (depth+1)/2;
         }
@@ -417,16 +417,16 @@ public class ScoutEngineImpl implements Engine {
                 return;
             }
 
-            if (Constants.QUICK_ASPIRATION_RESEARCH && moveCount==1 && score < alpha) {
+            if (moveCount==1 && score < alpha) {
                 //first search did not finish within (aspiration) window:
                 //either this move isn't really good, or the window might be to narrow.
 
                 // When we get here: we assume that the window is to narrow.
-                logger.info("first move in aspiration window [{}, {}] failed low {}. Researching with a wider window", alpha, beta, score);
+                logger.debug("first move in aspiration window [{}, {}] failed low {}. Researching with a wider window", alpha, beta, score);
+                //todo: investigate why this occurs with the same values multiple times in a row (only with extreme scores)
                 return;
             }
 
-            // todo: investigate better system for ScoredMove
             //if any move fails lower than the original alpha, prefer the original order
             move.setScore(Math.max(score, originalAlpha-moveCount));
             move.setDepth(searchIteration);

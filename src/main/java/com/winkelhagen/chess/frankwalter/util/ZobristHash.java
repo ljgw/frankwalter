@@ -19,11 +19,7 @@ package com.winkelhagen.chess.frankwalter.util;
 
 import java.util.Random;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 public class ZobristHash {
-    private static Logger logger = LogManager.getLogger();
 
     private static final long HASH_OTHERSIDE = 1L;
 
@@ -50,7 +46,6 @@ public class ZobristHash {
     }
 
     public ZobristHash() {
-        logger.info("Created new ZobristHash");
     }
 
     public void reset() {

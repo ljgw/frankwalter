@@ -285,7 +285,7 @@ public class MV {
 
     public static int toBasicSquare(String input) {
         if (!input.matches("[a-h][1-8]")) {
-            logger.error("unexpected character in square information");
+            logger.warn("unexpected character in square information");
             return -1;
         }
         return ((int) input.charAt(0)) - ((int) 'a') + (((int) input.charAt(1)) - ((int) '1')) * 8;
@@ -318,7 +318,7 @@ public class MV {
                 move |= Constants.KNIGHT << 12;
                 break;
             default:
-                logger.error("unexpected character in promotion information");
+                logger.warn("unexpected character in promotion information");
                 return 0;
             }
 

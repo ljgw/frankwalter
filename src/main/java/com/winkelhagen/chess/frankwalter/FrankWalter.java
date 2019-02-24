@@ -22,6 +22,7 @@ import com.winkelhagen.chess.frankwalter.config.FWConfig;
 import com.winkelhagen.chess.frankwalter.util.Constants;
 import com.winkelhagen.chess.frankwalter.tools.epd.EpdReader;
 import com.winkelhagen.chess.syzygy.SyzygyBridge;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -74,6 +75,7 @@ public class FrankWalter {
 			LoggerContext ctx = ((LoggerContext) LogManager.getContext(false));
 			Configuration config = ctx.getConfiguration();
 
+			config.getRootLogger().setLevel(Level.DEBUG);
 			config.getRootLogger().addAppender(config.getAppender("async-file"), null, null);
 			config.getRootLogger().removeAppender("console");
 			ctx.updateLoggers();
