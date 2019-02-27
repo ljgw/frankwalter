@@ -7,6 +7,7 @@ Usage
 -----
 FrankWalter is a java chess engine that requires java 8 or higher to work. Java can be downloaded from https://www.java.com/.
 The engine can be started with the command `java -jar frankwalter.jar <options>` where `<options>` are optional commandline parameters.
+For your convenience a launch4j wrapper executable is provided: on windows the engine can be started with `frankwalter.exe <options`.
 
 Currently the following commandline parameters are available:
 
