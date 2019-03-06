@@ -140,6 +140,7 @@ public class ScoutEngineImpl implements Engine {
     private int[] usedNull;
     private int nullCount;
 
+
     /*
      * for statistics pertaining the whole search of this position
      */
@@ -382,6 +383,7 @@ public class ScoutEngineImpl implements Engine {
             // if the new bestmove-score falls outside of the window, do a full re-search
             int tscore = list.get(0).getScore();
             if (tscore <= talpha || tscore >= tbeta) {
+                logger.trace("aspiration search failed {}{ {}-{}: {}", selectiveSearchDepth, talpha, tbeta, tscore);
                 startPVS(list, -INFINITY, INFINITY);
             }
         }
@@ -390,7 +392,6 @@ public class ScoutEngineImpl implements Engine {
     private void startPVS(List<ScoredMove> list, int alpha, int beta) {
         int score;
         int moveCount = 0;
-        int bestScoreSoFar = alpha;
         int originalAlpha = alpha;
 
         // searchIteration is increased to make clear that scores recorded in this call to startPVS are more accurate
@@ -441,8 +442,10 @@ public class ScoutEngineImpl implements Engine {
             move.setScore(Math.max(score, originalAlpha-moveCount));
             move.setDepth(searchIteration);
 
-            // Improvements on bestScoreSoFar are always current best moves in this position
-            if (score > bestScoreSoFar) {
+            // if the score exceeds alpha, we can cut-off earlier in subsequent scout searches
+            if (score > alpha) {
+                isExact = true;
+                //perhaps show new PV?
                 if (moveCount != 1 && currentDepth >= 2) {
                     mapTTonPV(move.getMove(), 0);
                     lastThoughtLine = new ThoughtLine(currentDepth,
@@ -453,19 +456,14 @@ public class ScoutEngineImpl implements Engine {
                     }
                     statistics.thoughtLines.add(lastThoughtLine);
                 }
-                // if the score exceeds alpha, we can cut-off earlier in subsequent scout searches
-                if (score > alpha) {
-                    isExact = true;
-                    // if the score is equal to, or exceeds, beta we can cut-off now!
-                    if (score >= beta) {
-                        Collections.sort(list);
-                        statistics.betacut++;
-                        tt.setEntry(board.getHashKey(), score, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.FAIL_HIGH, 0);
-                        return;
-                    }
-                    alpha = score;
+                // if the score is equal to, or exceeds, beta we can cut-off now!
+                if (score >= beta) {
+                    Collections.sort(list);
+                    statistics.betacut++;
+                    tt.setEntry(board.getHashKey(), score, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.FAIL_HIGH, 0);
+                    return;
                 }
-                bestScoreSoFar = score;
+                alpha = score;
             }
 
         }
@@ -473,9 +471,9 @@ public class ScoutEngineImpl implements Engine {
         // Before we finish, we sort the moves based on score, only looking at the most current scores
         Collections.sort(list);
         if (isExact) {
-            tt.setEntry(board.getHashKey(), bestScoreSoFar, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.EXACT, 0);
+            tt.setEntry(board.getHashKey(), alpha, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.EXACT, 0);
         } else {
-            tt.setEntry(board.getHashKey(), bestScoreSoFar, (short)selectiveSearchDepth, Constants.SAVE_BEST_FAIL_LOW?list.get(0).getMove():0, Entry.FAIL_LOW, 0);
+            tt.setEntry(board.getHashKey(), alpha, (short)selectiveSearchDepth, Constants.SAVE_BEST_FAIL_LOW?list.get(0).getMove():0, Entry.FAIL_LOW, 0);
         }
 
         // in case of only one move, do it.

@@ -28,6 +28,8 @@ import com.winkelhagen.chess.frankwalter.util.Constants;
 import com.winkelhagen.chess.frankwalter.util.MV;
 import com.winkelhagen.chess.frankwalter.util.ZobristHash;
 
+import java.util.Arrays;
+
 /**
  * class representing the board
  * The board representation is a bitboard variant with attacktables
@@ -164,11 +166,13 @@ public class Board {
         ply--;
         epSquare = history[ply].epSquare;
         zobrist.setHash(history[ply].hashKey);
+        hashtory[ply] = 0L;
     }
 
     public void doNullMove() {
         history[ply].epSquare = epSquare;
         history[ply].hashKey = zobrist.getHash();
+        hashtory[ply] = zobrist.getHash();
         if (epSquare != -1) {
             zobrist.toggleSpecial(epSquare);
         }
@@ -333,6 +337,7 @@ public class Board {
             throw new IllegalStateException("cannot undo ply 0");
         ply--;
         int move = history[ply].move;
+        hashtory[ply] = 0L;
         history[ply].move = 0;
         quiet50 = history[ply].quiet50;
         epSquare = history[ply].epSquare;
@@ -919,6 +924,5 @@ public class Board {
     public int getPlyCount() {
         return ply;
     }
-
 
 }
