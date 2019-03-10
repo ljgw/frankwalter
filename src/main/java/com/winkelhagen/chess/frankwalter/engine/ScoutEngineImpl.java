@@ -44,6 +44,16 @@ public class ScoutEngineImpl implements Engine {
 
     private static final Logger logger = LogManager.getLogger();
 
+
+    private static final int[][] LMR_TABLE = new int[64][32];
+    static {
+        // Ethereal LMR formula with depth and number of performed moves // tweaked from chess22k
+        for (int depth = 1; depth < 65; depth++) {
+            for (int moveNumber = 1; moveNumber < 32; moveNumber++) {
+                LMR_TABLE[depth-1][moveNumber] = Math.max(0, (int)(2 + 8 * Math.log(depth) * Math.log(moveNumber * 1.2f) / 2.5f));
+            }
+        }
+    }
     /*
      * Absolute max depth to search a position is set to 100, which we only reach in super end-game.
      * To keep the movesTable small, we use a predicted max moves number as the maximum number of moves in
@@ -129,6 +139,7 @@ public class ScoutEngineImpl implements Engine {
 
     private int[] usedNull;
     private int nullCount;
+
 
     /*
      * for statistics pertaining the whole search of this position
@@ -241,7 +252,7 @@ public class ScoutEngineImpl implements Engine {
             }
             bestMove[currentDepth] = list.get(0).getMove();
             bestScore[currentDepth] = list.get(0).getScore();
-            //todo: we panic too much
+
             if (currentDepth>6) {
                 panic = (bestScore[currentDepth - 1] - bestScore[currentDepth]) > Constants.SCORE_DROP_PANIC_THRESHOLD
                         || (bestScore[currentDepth - 2] - bestScore[currentDepth]) > Constants.SCORE_DROP_PANIC_THRESHOLD;
@@ -372,6 +383,7 @@ public class ScoutEngineImpl implements Engine {
             // if the new bestmove-score falls outside of the window, do a full re-search
             int tscore = list.get(0).getScore();
             if (tscore <= talpha || tscore >= tbeta) {
+                logger.trace("aspiration search failed {}{ {}-{}: {}", selectiveSearchDepth, talpha, tbeta, tscore);
                 startPVS(list, -INFINITY, INFINITY);
             }
         }
@@ -380,7 +392,6 @@ public class ScoutEngineImpl implements Engine {
     private void startPVS(List<ScoredMove> list, int alpha, int beta) {
         int score;
         int moveCount = 0;
-        int bestScoreSoFar = alpha;
         int originalAlpha = alpha;
 
         // searchIteration is increased to make clear that scores recorded in this call to startPVS are more accurate
@@ -431,8 +442,10 @@ public class ScoutEngineImpl implements Engine {
             move.setScore(Math.max(score, originalAlpha-moveCount));
             move.setDepth(searchIteration);
 
-            // Improvements on bestScoreSoFar are always current best moves in this position
-            if (score > bestScoreSoFar) {
+            // if the score exceeds alpha, we can cut-off earlier in subsequent scout searches
+            if (score > alpha) {
+                isExact = true;
+                //perhaps show new PV?
                 if (moveCount != 1 && currentDepth >= 2) {
                     mapTTonPV(move.getMove(), 0);
                     lastThoughtLine = new ThoughtLine(currentDepth,
@@ -443,19 +456,14 @@ public class ScoutEngineImpl implements Engine {
                     }
                     statistics.thoughtLines.add(lastThoughtLine);
                 }
-                // if the score exceeds alpha, we can cut-off earlier in subsequent scout searches
-                if (score > alpha) {
-                    isExact = true;
-                    // if the score is equal to, or exceeds, beta we can cut-off now!
-                    if (score >= beta) {
-                        Collections.sort(list);
-                        statistics.betacut++;
-                        tt.setEntry(board.getHashKey(), score, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.FAIL_HIGH, 0);
-                        return;
-                    }
-                    alpha = score;
+                // if the score is equal to, or exceeds, beta we can cut-off now!
+                if (score >= beta) {
+                    Collections.sort(list);
+                    statistics.betacut++;
+                    tt.setEntry(board.getHashKey(), score, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.FAIL_HIGH, 0);
+                    return;
                 }
-                bestScoreSoFar = score;
+                alpha = score;
             }
 
         }
@@ -463,9 +471,9 @@ public class ScoutEngineImpl implements Engine {
         // Before we finish, we sort the moves based on score, only looking at the most current scores
         Collections.sort(list);
         if (isExact) {
-            tt.setEntry(board.getHashKey(), bestScoreSoFar, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.EXACT, 0);
+            tt.setEntry(board.getHashKey(), alpha, (short)selectiveSearchDepth, list.get(0).getMove(), Entry.EXACT, 0);
         } else {
-            tt.setEntry(board.getHashKey(), bestScoreSoFar, (short)selectiveSearchDepth, Constants.SAVE_BEST_FAIL_LOW?list.get(0).getMove():0, Entry.FAIL_LOW, 0);
+            tt.setEntry(board.getHashKey(), alpha, (short)selectiveSearchDepth, Constants.SAVE_BEST_FAIL_LOW?list.get(0).getMove():0, Entry.FAIL_LOW, 0);
         }
 
         // in case of only one move, do it.
@@ -563,7 +571,7 @@ public class ScoutEngineImpl implements Engine {
             }
         }
 
-        boolean isPV = alpha == beta-1;
+        boolean isPV = alpha != beta-1;
         //IID
         if (isPV && hashMove==0 && depthToSearch > (5.0d * ONE_PLY)){
             recurse(depth + 4, alpha, beta);
@@ -623,28 +631,33 @@ public class ScoutEngineImpl implements Engine {
         // Loop through the moves
         for (int moveNumber = 0; moveNumber < movesNr; moveNumber++) {
             int move = MV.stripScore(moves[moveNumber]);
-            int localExtend = extend;
+            selectiveSearchDepth += extend;
+            int lmr = 0;
             board.doMove(move);
-            if (MV.getCaptured(move) != 0) {
-                localExtend++;
-            }
-            if (moveNumber > 3 && localExtend == 0 && selectiveSearchDepth >= 20) {
-                localExtend -= 8;
-            }
-            selectiveSearchDepth += localExtend;
 
-            if (!isPV || moveNumber == 0) {
-                score = -recurse(depth + 1, -beta, -alpha);
-            } else {
-                score = -recurse(depth + 1, -alpha - 1 , -alpha);
-                if (score > alpha && score < beta) { // if score >= beta: betacut
-                    score = -recurse(depth + 1, -beta, -alpha);
+            score = alpha+1;
+            if (moveNumber > 2){// && board.getSquares()[MV.getToSquare(move)] == 0) {
+                lmr -= LMR_TABLE[Math.min(depth, 63)][Math.min(moveNumber, 31)];
+                if (lmr<=-8) {
+                    selectiveSearchDepth += lmr;
+                    score = -recurse(depth + 1, -alpha - 1, -alpha);
+                    selectiveSearchDepth -= lmr;
                 }
-
             }
-            selectiveSearchDepth -= localExtend;
+
+            //PVS with moveNumber > 0 (starting scout)
+            if (score > alpha && isPV && moveNumber > 0) {
+                lmr = 0;
+                score = -recurse(depth + 1, -alpha - 1, -alpha);
+            }
+            //alpha == beta -1 (scout) or fullsearch PVS
+            if (score > alpha) {
+                lmr = 0;
+                score = -recurse(depth + 1, -beta, -alpha);
+            }
+            selectiveSearchDepth -= extend;
             board.undoMove();
-            int selDepth = (selectiveSearchDepth+localExtend)/8;
+            int selDepth = (selectiveSearchDepth+lmr+extend)/8;
             if (board.getSquares()[MV.getToSquare(move)] == Constants.EMPTY) {
                 addToHistory(board.getSideToMove(), MV.getFromTo(move), selDepth, depth);
             }
@@ -827,7 +840,6 @@ public class ScoutEngineImpl implements Engine {
             int patScore = Evaluator.eval(board, alpha, beta);
             if (patScore >= beta) {
                 statistics.qbetacut++;
-                //todo: store in TT?
                 if (Constants.TT_IN_QSEARCH) {
                     tt.setEntry(board.getHashKey(), patScore, (short) 0, 0, Entry.FAIL_HIGH, depth);
                 }

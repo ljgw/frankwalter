@@ -65,13 +65,14 @@ public class TranspositionTableQuadArrayImpl implements TranspositionTable {
 				replaceIndex = i;
 				break;
 			}
-			long entry = table[key*2+1];
+			long entry = table[(key+i)*2+1];
 			int entryDepth = Entry._depth(entry);
 			if ((entryHash&inverseMask) == (hashKey&inverseMask)) {
 				//this is the one
 				if (entryDepth>selDepth && type != Entry.EXACT){
 					return;
 				}
+				replaceIndex = i;
 				break;
 			}
 

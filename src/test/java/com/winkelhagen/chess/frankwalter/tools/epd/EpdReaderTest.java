@@ -50,10 +50,10 @@ public class EpdReaderTest {
     }
 
     @Test
-    public void testSingleRealWAC(){
-        EpdReader epdReader = new EpdReader("wac.epd", new BestMoveProcessor(10000, "WAC.002"));
+    public void testSingleRealBM(){
+        EpdReader epdReader = new EpdReader("testpos.epd", new BestMoveProcessor(10000, "testpos.2"));
         epdReader.process();
-        epdReader.printResults();
+//        epdReader.printResults();
         assertEquals("no warnings expected", 0, epdReader.getWarnings().size());
         assertEquals("1 line results expected", 1, epdReader.getLineResults().size());
     }

@@ -55,7 +55,9 @@ public class Constants {// NOSONAR
 
     public static final int SCORE_DROP_PANIC_THRESHOLD = 50;
 
-    public static final boolean SAVE_BEST_FAIL_LOW = false;
+    // if this is false, the shown PV will terminate strangely.
+    // Perhaps the option should be USE_BEST_MOVE_FAIL_LOW. (store but don't use it except for showing PV and getting a pondermove)
+    public static final boolean SAVE_BEST_FAIL_LOW = true;
 
     public static final boolean LAZY_EVAL = true;
 
