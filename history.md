@@ -3,6 +3,9 @@ The latest version of FrankWalter is ${version}
 
 ####v2.3.5
 * LMR
+* fixed a some consistency bugs in doMove/undoMove
+* fixed a bug in TranspositionTable
+* saving the bestMove for hashMove also when failing low to show a longer PV
 ####v2.3.4
 * Time management:
   * try to finish an iteration before returning best move
