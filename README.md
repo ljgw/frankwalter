@@ -16,6 +16,7 @@ Currently the following commandline parameters are available:
 * `-book <bookname>` (`<bookname>` should be the filename of an openingbook in Beowulf format, located next to the .jar file. The default is `frankwalter.opening` which is included in the engine itself)
 * `-tt <size>` (where `<size>` is the size is the size of the TranspositionTable in mb or gb. Possible values are 1mb, 2mb, 4mb, 8mb, 16mb, 32mb, 64mb, 128mb, 256mb, 512mb, 1gb. The default is 256mb)
 * `-tb <tablebases filepath>` (here `<tablebases filepath>` is the Syzygy-tablebases directory. It is also possible to configure this in xboard)
+* `-cores <number of cores to use>` (of course `<number of cores to use>` is the number of cores to use. Again, this is also configurable in xboard (and in cutechess-cli with `option.cores=<number of cores to use>`)
 
 Features
 --------

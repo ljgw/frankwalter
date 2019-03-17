@@ -49,7 +49,7 @@ public class BestMoveProcessor extends EpdProcessor {
         positions++;
         List<String> epdBestMoves = new ArrayList<>();
         for (String bestMove : epd.getOpCodeValue(EpdOpCode.BM).trim().split(" ")){
-            epdBestMoves.add(MV.toString(StaticMoveGenerator.parseSAN(fwConfig.board, bestMove)));
+            epdBestMoves.add(MV.toString(StaticMoveGenerator.parseSAN(fwConfig.smpController.getBoard(), bestMove)));
         }
         String engineBestMove = MV.toString(fwConfig.timedSearchStarter.getBestMove(false, millisToSolve, new HashSet<>()));
         String result;
@@ -80,7 +80,7 @@ public class BestMoveProcessor extends EpdProcessor {
 
     @Override
     public void printStatistics() {
-        new BoardView(fwConfig.board).echoPosition();
-        fwConfig.engine.printStatistics();
+        new BoardView(fwConfig.smpController.getBoard()).echoPosition();
+        fwConfig.smpController.printStatistics();
     }
 }
