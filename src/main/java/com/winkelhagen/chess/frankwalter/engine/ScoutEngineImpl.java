@@ -18,6 +18,7 @@
 package com.winkelhagen.chess.frankwalter.engine;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.winkelhagen.chess.frankwalter.util.Square;
 import com.winkelhagen.chess.frankwalter.engine.evaluator.Seer;
@@ -44,7 +45,6 @@ public class ScoutEngineImpl implements Engine {
 
     private static final Logger logger = LogManager.getLogger();
 
-
     private static final int[][] LMR_TABLE = new int[64][32];
     static {
         // Ethereal LMR formula with depth and number of performed moves // tweaked from chess22k
@@ -60,8 +60,8 @@ public class ScoutEngineImpl implements Engine {
      * a position. Apparently the absolute max is 218 (in: R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1) --
      * This, however, is defined in the Board class.
      */
-    private static final int ABSOLUTE_MAX_DEPTH = 125;
-    private static final int MAX_DEPTH_MARGIN = 50;
+    public static final int ABSOLUTE_MAX_DEPTH = 125;
+    public static final int MAX_DEPTH_MARGIN = 50;
 
     /*
      * score related constants: (INFINITY) Impossible max scores (alpha = -INFINITY, beta = INFINITY) to give bounds to
@@ -135,10 +135,9 @@ public class ScoutEngineImpl implements Engine {
     private boolean allowPanic = true;
 
 
-    private boolean showThinking = true;
+    //always false for every engine except the first.
+    private boolean showThinking = false;
 
-    private int[] usedNull;
-    private int nullCount;
 
 
     /*
@@ -149,16 +148,12 @@ public class ScoutEngineImpl implements Engine {
     private ThoughtLine lastThoughtLine;
     private int[] bestMove = new int[ABSOLUTE_MAX_DEPTH];
     private int[] bestScore = new int[ABSOLUTE_MAX_DEPTH];
+    private int searchThreadId = 0;
 
-    @Override
-    public int getBestMoveFromTT(){
-        long ttEntry = tt.getEntry(board.getHashKey());
-        if (ttEntry != 0) {
-            return Entry._move(ttEntry);
-        } else {
-            return -1;
-        }
+    private int piecesAtRoot = 0;
 
+    public void setSearchThreadId(int searchThreadId){
+        this.searchThreadId = searchThreadId;
     }
 
     /**
@@ -171,10 +166,12 @@ public class ScoutEngineImpl implements Engine {
      * @return the best move
      */
     @Override
-    public int getBestMove(Set<Integer> avoidMoves) {
+    public int getBestMove(Set<Integer> avoidMoves, List<AtomicInteger> searchDepths, SearchStatistics statistics) {
+
+        piecesAtRoot = board.getPieceCount();
 
         // initialize Statistics - at the real root of our tree.
-        statistics = new SearchStatistics();
+        this.statistics = statistics;
         lastThoughtLine = null;
         tt.increaseAge();
 
@@ -186,9 +183,6 @@ public class ScoutEngineImpl implements Engine {
         synchronized (SYNC_OBJECT) {
             SYNC_OBJECT.notifyAll();
         }
-        usedNull = new int[ABSOLUTE_MAX_DEPTH];
-        nullCount = 0;
-        usedNull[nullCount] = -1;
         searchIteration = 0;
 
         // Reset PV and killers
@@ -215,11 +209,17 @@ public class ScoutEngineImpl implements Engine {
         }
 
         // Iterative deepening until the engine is stopped or at max depth.
-        currentDepth = 1;
+        if (searchThreadId==0) {
+            currentDepth = 1;
+        } else {
+            currentDepth = 2 + (searchThreadId%3);
+        }
 
 
         // While the engine is not stopped (mate / forced move / out of time) and we're not at maxDepth
-        while (!isEngineAllowedToStop() && currentDepth != maxDepth) {
+        while (!isEngineAllowedToStop() && currentDepth < maxDepth) {
+
+            logger.debug("currentDepth: {}", currentDepth);
 
             // Adjust searching depth
             selectiveSearchDepth = currentDepth * ONE_PLY;
@@ -248,7 +248,6 @@ public class ScoutEngineImpl implements Engine {
                 if (showThinking) {
                     OutputPrinter.printObjectOutput(lastThoughtLine);
                 }
-                statistics.thoughtLines.add(lastThoughtLine);
             }
             bestMove[currentDepth] = list.get(0).getMove();
             bestScore[currentDepth] = list.get(0).getScore();
@@ -257,12 +256,22 @@ public class ScoutEngineImpl implements Engine {
                 panic = (bestScore[currentDepth - 1] - bestScore[currentDepth]) > Constants.SCORE_DROP_PANIC_THRESHOLD
                         || (bestScore[currentDepth - 2] - bestScore[currentDepth]) > Constants.SCORE_DROP_PANIC_THRESHOLD;
             }
-            currentDepth++;
+            if (searchThreadId==0) {
+                currentDepth++;
+            } else {
+                int baseDepth = searchDepths.get(0).get();
+                if (baseDepth <= currentDepth){
+                    currentDepth = baseDepth + 1 + searchThreadId%3;
+                } else {
+                    currentDepth++;
+                    if (searchDepths.get(searchThreadId-1).get() == currentDepth){
+                        currentDepth++;
+                    }
+                }
+            }
+            searchDepths.get(searchThreadId).set(currentDepth);
         }
         hardStopEngine = true;
-
-        // Log some statistics
-        statistics.stop(MV.toString(list.get(0).getMove()));
 
         // set stopengine because we're done for now.
         // Return the best move.
@@ -454,7 +463,6 @@ public class ScoutEngineImpl implements Engine {
                     if (showThinking) {
                         OutputPrinter.printObjectOutput(lastThoughtLine);
                     }
-                    statistics.thoughtLines.add(lastThoughtLine);
                 }
                 // if the score is equal to, or exceeds, beta we can cut-off now!
                 if (score >= beta) {
@@ -507,17 +515,16 @@ public class ScoutEngineImpl implements Engine {
      * @return the score of the position.
      */
     private int recurse(int depth, int alphaInput, int betaInput) {
-        updateNullStatistics();
         statistics.nodecount++;
         int alpha = alphaInput;
         int beta = betaInput;
 
-        // check for 2fold? check elsewhere, rep draw might be worth directing the FW to.. (or from!!) yes!!
         if (board.checkForSingleRepetitions()) {
             return Evaluator.getContemptScore();
         }
 
-        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount())){
+        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount()) && board.getPieceCount()<piecesAtRoot){
+            // search normally when the search started with the same number of pieces as we have now - an indication that there is no DTZ file
             int result = Syzygy.probeWDL(board);
             if (result!=-1){
                 statistics.tbhits++;
@@ -693,18 +700,6 @@ public class ScoutEngineImpl implements Engine {
 
     }
 
-    /**
-     * update statistics about nullmoves
-     */
-    private void updateNullStatistics() {
-        if (nullCount==0){
-            statistics.nonull++;
-        } else if (nullCount==1){
-            statistics.onenull++;
-        } else {
-            statistics.morenull++;
-        }
-    }
 
     /**
      * do a null Move + a less deep zero-window search based on beta
@@ -718,9 +713,7 @@ public class ScoutEngineImpl implements Engine {
         board.doNullMove();
         int r = calcNullReduction();
         selectiveSearchDepth -= r;
-        usedNull[++nullCount] = depth;
         score = -recurse(depth + 1, -beta, 1 - beta);
-        usedNull[nullCount--] = -1;
         selectiveSearchDepth += r;
         board.undoNullMove();
         return score;
@@ -778,7 +771,9 @@ public class ScoutEngineImpl implements Engine {
     private int recurseQuiet(int alphaInput, int betaInput, int depth) {
         int alpha = alphaInput;
         int beta = betaInput;
-        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount())){
+        //todo should we use this? (https://www.chessprogramming.org/Syzygy_Bases#During_the_Search)
+        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount()) && board.getPieceCount()<piecesAtRoot){
+            // search normally when the search started with the same number of pieces as we have now - an indication that there is no DTZ file
             int result = Syzygy.probeWDL(board);
             if (result!=-1){
                 statistics.tbhits++;
@@ -940,11 +935,11 @@ public class ScoutEngineImpl implements Engine {
         sb.append(String.format("history:white 0-count '%d', max '%d'%n", Arrays.stream(history[Constants.WHITE]).filter(i -> i==0).count(), Arrays.stream(history[Constants.WHITE]).max().orElse(0)));
         sb.append(String.format("betacut:white 0-count '%d', max '%d'%n", Arrays.stream(historyBetaCut[Constants.WHITE]).filter(i -> i==0).count(), Arrays.stream(historyBetaCut[Constants.WHITE]).max().orElse(0)));
         sb.append(String.format("White Distribution: %s%n", Arrays.toString(distributions[Constants.WHITE])));
-        historyMoves[Constants.WHITE].stream().sorted(Comparator.reverseOrder()).limit(64).forEach(x -> sb.append(String.format("\t%s%n", x)));
+//        historyMoves[Constants.WHITE].stream().sorted(Comparator.reverseOrder()).limit(64).forEach(x -> sb.append(String.format("\t%s%n", x)));
         sb.append(String.format("history:black 0-count '%d', max '%d'%n", Arrays.stream(history[Constants.BLACK]).filter(i -> i==0).count(), Arrays.stream(history[Constants.BLACK]).max().orElse(0)));
         sb.append(String.format("betacut:black 0-count '%d', max '%d'%n", Arrays.stream(historyBetaCut[Constants.BLACK]).filter(i -> i==0).count(), Arrays.stream(historyBetaCut[Constants.BLACK]).max().orElse(0)));
         sb.append(String.format("Black Distribution: %s%n", Arrays.toString(distributions[Constants.BLACK])));
-        historyMoves[Constants.BLACK].stream().sorted(Comparator.reverseOrder()).limit(64).forEach(x -> sb.append(String.format("\t%s%n", x)));
+//        historyMoves[Constants.BLACK].stream().sorted(Comparator.reverseOrder()).limit(64).forEach(x -> sb.append(String.format("\t%s%n", x)));
         return sb.toString();
     }
 
@@ -976,7 +971,6 @@ public class ScoutEngineImpl implements Engine {
         logger.info("nodecout: {}", statistics.nodecount);
     }
 
-    @Override
     public SearchStatistics getStatistics() {
         return statistics;
     }
@@ -1010,11 +1004,6 @@ public class ScoutEngineImpl implements Engine {
     @Override
     public void allowStop() {
         allowStopEngine = true;
-    }
-
-    @Override
-    public boolean isRunning() {
-        return (!hardStopEngine);
     }
 
     @Override

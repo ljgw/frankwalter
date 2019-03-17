@@ -35,6 +35,7 @@ public abstract class EpdProcessor {
         }
         fwConfig.preloadStaticClasses();
         fwConfig.setTranspositionTable();
+        fwConfig.setAdditionalCores();
 
     }
 
@@ -46,8 +47,8 @@ public abstract class EpdProcessor {
 
     public boolean setup(ExtendPositionDescription epd){
         try {
-            fwConfig.engine.clearCaches();
-            fwConfig.board.setupBoard(epd.getFen());
+            fwConfig.smpController.clearCaches();
+            fwConfig.smpController.setupBoard(epd.getFen());
         } catch (IllegalFENException e) {
             return false;
         }

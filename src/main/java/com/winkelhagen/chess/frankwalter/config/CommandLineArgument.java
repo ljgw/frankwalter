@@ -24,7 +24,7 @@ import java.util.Map;
  * enumeration of commandline arguments with their detaults
  */
 public enum CommandLineArgument {
-    DEBUG("-debug"), TT_SIZE("-tt"), TB_LOCATION("-tb"), BOOK("-book"), NO_BOOK("-nobook"), EPD("-epd");
+    DEBUG("-debug"), TT_SIZE("-tt"), TB_LOCATION("-tb"), BOOK("-book"), NO_BOOK("-nobook"), EPD("-epd"), CORES("-cores");
 
     private String argument;
 
@@ -43,6 +43,7 @@ public enum CommandLineArgument {
         defaults.put(TB_LOCATION, null);
         defaults.put(BOOK, "frankwalter.openings");
         defaults.put(NO_BOOK, Boolean.FALSE);
+        defaults.put(CORES, null);
         return defaults;
     }
 

@@ -60,15 +60,15 @@ public class PerftProcessor extends EpdProcessor {
     private long perft(int depth){
         long nodeCount = 0;
         int moves[] = movesTable[depth];
-        int movesNr = StaticMoveGenerator.generateLegalMoves(fwConfig.board, moves);
+        int movesNr = StaticMoveGenerator.generateLegalMoves(fwConfig.smpController.getBoard(), moves);
 
         if (depth==1){
             return movesNr;
         }
         for (int i=0; i<movesNr; i++){
-            fwConfig.board.doMove(moves[i]);
+            fwConfig.smpController.doSingleMove(moves[i]);
             nodeCount += perft(depth-1);
-            fwConfig.board.undoMove();
+            fwConfig.smpController.undoSingleMove();
         }
         return nodeCount;
     }

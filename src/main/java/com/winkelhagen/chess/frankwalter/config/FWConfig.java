@@ -17,6 +17,7 @@
  */
 package com.winkelhagen.chess.frankwalter.config;
 
+import com.winkelhagen.chess.frankwalter.SMPController;
 import com.winkelhagen.chess.frankwalter.board.Board;
 import com.winkelhagen.chess.frankwalter.engine.Engine;
 import com.winkelhagen.chess.frankwalter.engine.ScoutEngineImpl;
@@ -28,6 +29,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import static com.winkelhagen.chess.frankwalter.config.CommandLineArgument.*;
+import static com.winkelhagen.chess.frankwalter.engine.ScoutEngineImpl.ABSOLUTE_MAX_DEPTH;
+import static com.winkelhagen.chess.frankwalter.engine.ScoutEngineImpl.MAX_DEPTH_MARGIN;
 
 import java.io.File;
 import java.util.Map;
@@ -44,17 +47,15 @@ public class FWConfig {
 	private static final String TT_SIZE_PATTERN = "^(?<size>\\d++)(?<quantifier>\\w+)?$";
 
 	private static final Logger logger = LogManager.getLogger();
-	public final Board board = new Board();
-	public final Engine engine = new ScoutEngineImpl();
 	public final Board dummyBoard = new Board();
+	public final SMPController smpController = new SMPController();
 
 	private Map<CommandLineArgument, Object> properties = CommandLineArgument.getBaseProperties();
-	public final TimedSearchStarter timedSearchStarter = new TimedSearchStarter(engine);
+	public final TimedSearchStarter timedSearchStarter = new TimedSearchStarter(smpController);
 
     public FWConfig(String[] args){
 		parseArguments(args);
 
-		engine.setBoard(board);
 
 		testTableBaseLibrary();
 	}
@@ -101,6 +102,7 @@ public class FWConfig {
 					properties.put(NO_BOOK, Boolean.TRUE);
 					break;
 				case BOOK:
+				case CORES:
 				case EPD:
 				case TB_LOCATION:
 				case TT_SIZE:
@@ -125,6 +127,15 @@ public class FWConfig {
 				break;
 			case BOOK:
 				properties.put(BOOK, arg);
+				break;
+			case CORES:
+				Integer parsedArgument = null;
+				try {
+					parsedArgument = Integer.valueOf(arg);
+				} catch (NumberFormatException nfe) {
+					logger.warn("illegal commandline parameter for -cores '{}' - this should be a number", arg);
+				}
+				properties.put(CORES, parsedArgument);
 				break;
 			case EPD:
 				properties.put(EPD, arg);
@@ -166,7 +177,7 @@ public class FWConfig {
 	}
 
 	public int getMaxDepth() {
-		return 100;
+		return ABSOLUTE_MAX_DEPTH - MAX_DEPTH_MARGIN;
 	}
 
 	public boolean isDebug() {
@@ -220,7 +231,13 @@ public class FWConfig {
 	public void setTranspositionTable() {
 		int magnitude = getTTSize(getMaxTTSize());
 		logger.info("initializing TranspositionTables with magnitude {} ({} MB)", magnitude, (1<<(magnitude-16)));
-		engine.setTranspositionTable(new TranspositionTableQuadArrayImpl(magnitude));
+		smpController.setTranspositionTable(new TranspositionTableQuadArrayImpl(magnitude));
 	}
 
+	public void setAdditionalCores() {
+		if (properties.get(CORES)!=null) {
+			logger.info("initializing additional available cores");
+			smpController.setCores((Integer)properties.get(CORES));
+		}
+	}
 }

@@ -20,7 +20,9 @@ package com.winkelhagen.chess.frankwalter.engine;
 import com.winkelhagen.chess.frankwalter.board.Board;
 import com.winkelhagen.chess.frankwalter.engine.tt.TranspositionTable;
 
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * interface for engines - allows us to switch engines with ease.
@@ -33,10 +35,12 @@ public interface Engine {
     /**
      * Return the best possible move, set statistics. Think infinitely
      * @param avoidMoves moves to avoid - these are not investigated unless no other moves are available.
+     * @param searchDepths depths that the search-threads are searching at
+     * @param statistics search statistics
      *
      * @return an int representing the best move.
      */
-    int getBestMove(Set<Integer> avoidMoves);
+    int getBestMove(Set<Integer> avoidMoves, List<AtomicInteger> searchDepths, SearchStatistics statistics);
 
     /**
      * Setter for the board.
@@ -74,14 +78,6 @@ public interface Engine {
     void setTranspositionTable(TranspositionTable tt);
 
     /**
-     * query the board for the best move according to the TranspositionTable
-     * @return the hashmove from the TranspositionTable
-     */
-    int getBestMoveFromTT();
-
-    SearchStatistics getStatistics();
-
-    /**
      * get the quiet score of this position
      * @return the score based on the q-search
      */
@@ -94,13 +90,6 @@ public interface Engine {
     void printStatistics();
 
     String historyStatistics();
-
-
-    /**
-     * is the engine running
-     * @return true iff stopEngine == false;
-     */
-    boolean isRunning();
 
     void showLastThoughtLine();
 

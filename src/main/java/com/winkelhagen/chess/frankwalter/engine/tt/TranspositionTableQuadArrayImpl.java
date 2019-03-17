@@ -67,7 +67,7 @@ public class TranspositionTableQuadArrayImpl implements TranspositionTable {
 			}
 			long entry = table[(key+i)*2+1];
 			int entryDepth = Entry._depth(entry);
-			if ((entryHash&inverseMask) == (hashKey&inverseMask)) {
+			if (((entryHash^entry)&inverseMask) == (hashKey&inverseMask)) {
 				//this is the one
 				if (entryDepth>selDepth && type != Entry.EXACT){
 					return;
@@ -87,8 +87,9 @@ public class TranspositionTableQuadArrayImpl implements TranspositionTable {
 				replaceDepth = entryDepth;
 			}
 		}
-		table[(key+replaceIndex)*2] = (hashKey^(long)maskedKey)|(long)currentAge;
-		table[(key+replaceIndex)*2+1] = Entry.toLong(Entry.correctMateScore(score, depth), selDepth, move, type);
+		long entry = Entry.toLong(Entry.correctMateScore(score, depth), selDepth, move, type);
+		table[(key+replaceIndex)*2] = ((hashKey^entry)&inverseMask)|(long)currentAge;
+		table[(key+replaceIndex)*2+1] = entry;
 	}
 	
 	/* (non-Javadoc)
@@ -99,8 +100,9 @@ public class TranspositionTableQuadArrayImpl implements TranspositionTable {
 		int key = (int)(hashKey & mask)<<2;
 		for (int i=0; i<4;i++) {
 			long entryHash = table[(key+i) * 2];
-			if ((entryHash&inverseMask) == (hashKey&inverseMask)) {
-				return table[(key+i) * 2 + 1];
+			long entry = table[(key+i) * 2 + 1];
+			if (((entryHash^entry)&inverseMask) == (hashKey&inverseMask)) {
+				return entry;
 			}
 		}
 		return 0;
