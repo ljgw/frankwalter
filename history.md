@@ -1,6 +1,8 @@
 ##FrankWalter - history
 The latest version of FrankWalter is ${version}
 
+####v2.3.5-SMP
+* SMP
 ####v2.3.5
 * LMR
 * fixed a some consistency bugs in doMove/undoMove

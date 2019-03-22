@@ -33,29 +33,18 @@ public class SearchStatistics {
 
     private static final Logger LOG = LogManager.getLogger();
 
-    int nodecount;
-    int betacut;
-    int qnodecount;
-    int qbetacut;
-    int tthits;
-    int ttfails;
+    volatile int nodecount;
+    volatile int betacut;
+    volatile int qnodecount;
+    volatile int qbetacut;
+    volatile int tthits;
+    volatile int ttfails;
     long starttime = System.currentTimeMillis();
-    int iddcount;
-    int nonull;
-    int onenull;
-    int morenull;
-    int tbhits;
-    List<ThoughtLine> thoughtLines = new ArrayList<>();
+    volatile int iddcount;
+    volatile int tbhits;
 
-    String checkForMate = null;
-
-    int nullMoves;
-    int nullMoveTries;
-
-
-    public List<ThoughtLine> getThoughtLines() {
-        return thoughtLines;
-    }
+    volatile int nullMoves;
+    volatile int nullMoveTries;
 
     /**
      * stop statistics and log them
@@ -71,7 +60,7 @@ public class SearchStatistics {
             LOG.debug("TranspositionTable: +{}/-{}.", tthits, ttfails);
             LOG.debug("Tablebase hits: {}",tbhits);
             LOG.debug("IDD Count: {}.", iddcount);
-            LOG.debug("Nullmoves: {} {} {}. Nullmoves: {}/{}.", nonull, onenull, morenull, nullMoves, nullMoveTries);
+            LOG.debug("Nullmoves: {}/{}.", nullMoves, nullMoveTries);
         }
     }
 

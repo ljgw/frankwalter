@@ -115,13 +115,20 @@ public class XBoardInterface extends AbstractInterface {
             case "hint":
             case "bk":
             case "post":
+                game.setPost(true);
+                break;
             case "nopost":
+                game.setPost(false);
+                break;
             case "analyze":
             case "name":
             case "rating":
             case "ics":
             case "computer":
                 logger.info(COMMAND_NOT_SUPPORTED, command);
+                break;
+            case "cores":
+                game.setCores(Integer.parseInt(userInputSubstrings[1]));
                 break;
             case "force":
                 game.forceMode();
@@ -250,6 +257,7 @@ public class XBoardInterface extends AbstractInterface {
             OutputPrinter.printOutput("feature colors=0");
             OutputPrinter.printOutput("feature analyze=0");
             OutputPrinter.printOutput("feature sigint=0");
+            OutputPrinter.printOutput("feature smp=1");
             OutputPrinter.printOutput("feature variants=\"normal\"");
             OutputPrinter.printOutput("feature myname=\"" + Constants.getEngineName() + "\"");
 

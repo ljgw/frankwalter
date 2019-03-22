@@ -17,6 +17,7 @@
  */
 package com.winkelhagen.chess.frankwalter.engine;
 
+import com.winkelhagen.chess.frankwalter.SMPController;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,7 +29,7 @@ import static com.winkelhagen.chess.frankwalter.engine.ScoutEngineImpl.SYNC_OBJE
 public class TimedSearchStarter implements Runnable {
 
     private static final Logger logger = LogManager.getLogger();
-    private Engine engine;
+    private SMPController controller;
     private long sleepToTime;
     private long sleepToTimeOptimistic;
     private volatile boolean ponder;
@@ -41,7 +42,7 @@ public class TimedSearchStarter implements Runnable {
 
     public void disallowPonder(boolean ponderHit) {
         if (ponderHit){
-            engine.showLastThoughtLine();
+            controller.showLastThoughtLine();
             this.ponderHit = true;
         }
         ponderDisallowed = true;
@@ -62,7 +63,7 @@ public class TimedSearchStarter implements Runnable {
      * @param thinkingTime the time allowed to think
      * @param avoidMoves moves to avoid - these are not investigated unless no other moves are available.
      *
-     * @return an int representing the best move. ({@link Engine#getBestMove(Set)}
+     * @return an int representing the best move. ({@link Engine#getBestMove(Set, java.util.List, SearchStatistics)}
      */
     public int getBestMove(boolean ponder, long thinkingTime, Set<Integer> avoidMoves) {
         this.ponder = ponder;
@@ -90,7 +91,7 @@ public class TimedSearchStarter implements Runnable {
         }
 
         // Find the actual move (this also causes the thread to stop waiting, if ponder is false)
-        int move = engine.getBestMove(avoidMoves);
+        int move = controller.getBestMove(avoidMoves);
         ponderDisallowed = false;
         ponderHit = false;
 
@@ -99,10 +100,10 @@ public class TimedSearchStarter implements Runnable {
     }
 
     /**
-     * @param engine - the engine to use
+     * @param controller - the controller to use
      */
-    public TimedSearchStarter(Engine engine) {
-        this.engine = engine;
+    public TimedSearchStarter(SMPController controller) {
+        this.controller = controller;
         waker = new Thread(this, "waker-bm");
         waker.setPriority(7);
         waker.setDaemon(true);
@@ -124,7 +125,7 @@ public class TimedSearchStarter implements Runnable {
             try {
                 synchronized (SYNC_OBJECT) {
                     //first, wait until the engine is running, if needed.
-                    while (!engine.isRunning()) {
+                    while (!controller.isRunning()) {
                         logger.debug("engine is not running: waiting");
                         SYNC_OBJECT.wait();
                         logger.debug("engine is running");
@@ -147,7 +148,7 @@ public class TimedSearchStarter implements Runnable {
                     } else {
                         logger.debug("allowing engine to stop because sleepTime ({}) is zero or negative", sleepTime);
                     }
-                    engine.allowStop();
+                    controller.allowStop();
                 }
                 //todo: increase this non-optimistic sleepToTime based on the time spent pondering.
                 long sleepTime = (sleepToTime - System.currentTimeMillis()) + ponderTime;
@@ -157,7 +158,7 @@ public class TimedSearchStarter implements Runnable {
                 } else {
                     logger.debug("stopping engine because sleepTime ({}, ponderTime was {}) is zero or negative", sleepTime, ponderTime/2);
                 }
-                engine.forceStop();
+                controller.forceStop();
             } catch (InterruptedException ie) { //NOSONAR
                 logger.debug("interrupted - not stopping engine");
             }

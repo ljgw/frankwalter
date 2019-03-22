@@ -17,6 +17,7 @@
  */
 package com.winkelhagen.chess.frankwalter;
 
+import com.winkelhagen.chess.frankwalter.board.Board;
 import com.winkelhagen.chess.frankwalter.ci.OutputPrinter;
 import com.winkelhagen.chess.frankwalter.config.FWConfig;
 import com.winkelhagen.chess.frankwalter.engine.moves.StaticMoveGenerator;
@@ -129,6 +130,7 @@ public class GameController implements Runnable {
                     case INIT:
                         fwConfig.preloadStaticClasses();
                         fwConfig.setTranspositionTable();
+                        fwConfig.setAdditionalCores();
                         loadOpeningBook();
                         tbLoaded = SyzygyBridge.isLibLoaded();
                         forceMode = true;
@@ -162,8 +164,8 @@ public class GameController implements Runnable {
                         newlyInitializedGame = false;
                         //deal with ponder
                         int userMove = MV.toBasicMove(command.parameter);
-                        fwConfig.engine.forceStop();
-                        fwConfig.board.doSingleMove(StaticMoveGenerator.findLegalMove(fwConfig.board, userMove));
+                        //engines are stopped at this point
+                        fwConfig.smpController.doSingleMove(StaticMoveGenerator.findLegalMove(fwConfig.smpController.getBoard(), userMove));
                         checkGameStatus();
                         if (!forceMode) {
                             doGo(command.millis);
@@ -180,7 +182,7 @@ public class GameController implements Runnable {
                 }
             } catch (InterruptedException ie) {
                 LOGGER.warn("engine loop was interrupted", ie);
-                Thread.currentThread().interrupt();
+                throw new RuntimeException("engine loop was interrupted", ie);
             }
         }
     }
@@ -236,7 +238,7 @@ public class GameController implements Runnable {
     public void undoLastMove(int times) {
         stopEngineAndSync(); //stop any thinking or pondering + sync
         for (int i = 0; i < times; i++) {
-            fwConfig.board.undoSingleMove();
+            fwConfig.smpController.undoSingleMove();
         }
         if (ponder && !forceMode){
             commandQueue.add(new QueuedCommand(Command.PONDER));
@@ -245,13 +247,9 @@ public class GameController implements Runnable {
 
     //new game (new)
     public void setupNewGame() {
-        if (!newlyInitializedGame) {
-            stopEngineAndSync();
-            clearEngineState();
-            setupStartPosition();
-        } else {
-            LOGGER.debug("new game already set up");
-        }
+        stopEngineAndSync();
+        clearEngineState();
+        setupStartPosition();
         forceMode = false;
     }
 
@@ -261,7 +259,7 @@ public class GameController implements Runnable {
             fwConfig.dummyBoard.setupBoard(position);
             stopEngineAndSync();
             newlyInitializedGame = false;
-            fwConfig.board.setupBoard(position);
+            fwConfig.smpController.setupBoard(position);
             return true;
         } catch (IllegalFENException e) {
             return false;
@@ -287,13 +285,18 @@ public class GameController implements Runnable {
         gameTimer.setOtherTime(otherTime);
     }
 
+    //post, nopost
+    public void setPost(final boolean post){
+        fwConfig.smpController.setPost(post);
+    }
+
     //move .... (stop pondering if pondering)
     public void userMove(String userMove) {
         //todo: after refactor - verify usermove
         int move = MV.toBasicMove(userMove);
         if (forceMode){
             LOGGER.debug("forcing usermove {}", userMove);
-            fwConfig.board.doSingleMove(StaticMoveGenerator.findLegalMove(fwConfig.board, move));
+            fwConfig.smpController.doSingleMove(StaticMoveGenerator.findLegalMove(fwConfig.smpController.getBoard(), move));
             checkGameStatus();
         } else {
             if (!ponder){
@@ -315,7 +318,7 @@ public class GameController implements Runnable {
                     if (pondering > 0) {
                         LOGGER.debug("ponder-miss");
                     }
-                    fwConfig.engine.forceStop();
+                    fwConfig.smpController.forceStop();
                     fwConfig.timedSearchStarter.disallowPonder(false);
                 });
                 commandQueue.add(new QueuedCommand(Command.MOVE, userMove));
@@ -349,7 +352,7 @@ public class GameController implements Runnable {
 
     //sd
     public void setMaxSearchDepth(final int maxSearchDepth) {
-        commandQueue.add(new QueuedCommand(Command.CMD, "sd: " + maxSearchDepth, () -> fwConfig.engine.setMaxDepth(maxSearchDepth)));
+        commandQueue.add(new QueuedCommand(Command.CMD, "sd: " + maxSearchDepth, () -> fwConfig.smpController.setMaxDepth(maxSearchDepth)));
     }
 
     //st
@@ -360,6 +363,11 @@ public class GameController implements Runnable {
     //level
     public void parseLevel(final String fullMovesPerSession, final String time, final String inc) {
         commandQueue.add(new QueuedCommand(Command.CMD, String.format("level: %s %s %s", fullMovesPerSession, time, inc), () -> {doParseLevel(fullMovesPerSession, time, inc);fwConfig.timedSearchStarter.setUseStrictTime(false);}));
+    }
+
+    //cores
+    public void setCores(int cores) {
+        commandQueue.add(new QueuedCommand(Command.CMD, "cores: " + cores, () -> fwConfig.smpController.setCores(cores)));
     }
 
     /*
@@ -374,12 +382,12 @@ public class GameController implements Runnable {
             forceMode = true;
         }
         if (!forceMode) {
-            fwConfig.board.doSingleMove(move);
+            fwConfig.smpController.doSingleMove(move);
             MV.outputMove(move);
             checkGameStatus();
         }
         int thinkingTime = (int)(System.currentTimeMillis()-startTime);
-        gameTimer.setTentativeOwnTimeForNextMove(startOwnTime-thinkingTime, fwConfig.board.getFullMoves());
+        gameTimer.setTentativeOwnTimeForNextMove(startOwnTime-thinkingTime, fwConfig.smpController.getBoard().getFullMoves());
     }
 
     private void doParseLevel(String fullMovesPerSessionString, String timeString, String incString){
@@ -409,7 +417,7 @@ public class GameController implements Runnable {
             ponderMove = findTableBaseMove();
         }
         if (ponderMove == 0) {
-            ponderMove = fwConfig.engine.getBestMoveFromTT();
+            ponderMove = fwConfig.smpController.getBestMoveFromTT();
         }
         if (ponderMove <= 0){
             //todo: shallow search to get pondermove?
@@ -418,7 +426,7 @@ public class GameController implements Runnable {
         if (ponderMove > 0){
             LOGGER.debug("pondering: " + MV.toString(ponderMove));
             OutputPrinter.printOutput("Hint: " + MV.toString(ponderMove));
-            fwConfig.board.doSingleMove(ponderMove);
+            fwConfig.smpController.doSingleMove(ponderMove);
             if (findBookMove()!=0 || findTableBaseMove()!=0){
                 //ponder, but just pick the book / tablebase move when pondering stops.
                 LOGGER.debug("got reply to pondermove from book / tablebases");
@@ -427,22 +435,22 @@ public class GameController implements Runnable {
                 pondering = MV.toBasicMove(MV.toString(ponderMove));
             }
             //calculate time to move based on tentativeOwnTime (set after thinking) or ownTime (set after usermove)
-            long timeToMove = gameTimer.calculateTime((fwConfig.board.getFullMoves()), 0L);
+            long timeToMove = gameTimer.calculateTime((fwConfig.smpController.getBoard().getFullMoves()), 0L);
             int move = fwConfig.timedSearchStarter.getBestMove(true,  timeToMove, new HashSet<>());
             int startOwnTime = gameTimer.getOwnTime(); //set by time command
             doUnderLock(() -> {
                 LOGGER.debug("move after ponder: {} (pondering = {})", MV.toString(move), pondering);
                 if (move>0 && pondering==0){
                     int thinkingTime = (int)(System.currentTimeMillis()-endPonderTime);
-                    fwConfig.board.doSingleMove(move);
+                    fwConfig.smpController.doSingleMove(move);
                     MV.outputMove(move);
                     checkGameStatus();
-                    gameTimer.setTentativeOwnTimeForNextMove(startOwnTime-thinkingTime, fwConfig.board.getFullMoves());
+                    gameTimer.setTentativeOwnTimeForNextMove(startOwnTime-thinkingTime, fwConfig.smpController.getBoard().getFullMoves());
                     if (ponder && !forceMode){
                         commandQueue.add(new QueuedCommand(Command.PONDER));
                     }
                 } else {
-                    fwConfig.board.undoSingleMove();
+                    fwConfig.smpController.undoSingleMove();
                 }
                 pondering = 0;
             });
@@ -484,18 +492,19 @@ public class GameController implements Runnable {
     }
 
     private GameStatus determineGameStatus(){
-        if (fwConfig.board.getQuiet50() > 99) {
+        Board board = fwConfig.smpController.getBoard();
+        if (board.getQuiet50() > 99) {
             return new GameStatus(true, "1/2-1/2 {Draw by 50 move rule}");
         }
-        if (fwConfig.board.checkForRepetitions()) {
+        if (board.checkForRepetitions()) {
             return new GameStatus(true, "1/2-1/2 {Draw by 3fold Repetition}");
         }
-        int sideToMove = fwConfig.board.getSideToMove();
-        if (StaticMoveGenerator.hasLegalMoves(fwConfig.board)){
+        int sideToMove = board.getSideToMove();
+        if (StaticMoveGenerator.hasLegalMoves(board)){
             return new GameStatus(false, "game in progress");
         }
         //no legal moves
-        if (StaticMoveGenerator.isKingAttacked(fwConfig.board, sideToMove ^ 1)) {
+        if (StaticMoveGenerator.isKingAttacked(board, sideToMove ^ 1)) {
             if (sideToMove == Constants.WHITE) {
                 return new GameStatus(true, "0-1 {Black mates}");
             } else {
@@ -513,14 +522,15 @@ public class GameController implements Runnable {
             move = findTableBaseMove();
         }
         if (move == 0) {
-            move = fwConfig.timedSearchStarter.getBestMove(false, gameTimer.calculateTime(fwConfig.board.getFullMoves(), System.currentTimeMillis() - commandTime), new HashSet<>());
+            move = fwConfig.timedSearchStarter.getBestMove(false, gameTimer.calculateTime(fwConfig.smpController.getBoard().getFullMoves(), System.currentTimeMillis() - commandTime), new HashSet<>());
         }
         return move;
     }
 
     private int findTableBaseMove() {
-        if (Constants.USE_TB && tbLoaded && fwConfig.board.isInTableBaseRange()){
-            int result = Syzygy.probeDTZ(fwConfig.board);
+        Board board = fwConfig.smpController.getBoard();
+        if (Constants.USE_TB && tbLoaded && board.isInTableBaseRange()){
+            int result = Syzygy.probeDTZ(board);
             if (result==-1) {
                 LOGGER.warn("didn't find a move in tablebases");
                 return 0;
@@ -529,11 +539,11 @@ public class GameController implements Runnable {
             int tbMove = Syzygy.toMove(result);
             int score = Syzygy.toXBoardScore(result);
             LOGGER.debug("tablebases returned {} with score {}", MV.toString(tbMove), score);
-            if (fwConfig.engine.getShowThinking()){
+            if (fwConfig.smpController.getShowThinking()){
                 ThoughtLine thoughtLine = new ThoughtLine(score, tbMove);
                 OutputPrinter.printObjectOutput(thoughtLine);
             }
-            return StaticMoveGenerator.findLegalMove(fwConfig.board, tbMove);
+            return StaticMoveGenerator.findLegalMove(board, tbMove);
         } else {
             return 0;
         }
@@ -542,9 +552,9 @@ public class GameController implements Runnable {
     private int findBookMove() {
         int move = 0;
         if (fwConfig.getBook()!=null) {
-            int bookMove = book.probeBook(fwConfig.board.getHashKey());
+            int bookMove = book.probeBook(fwConfig.smpController.getBoard().getHashKey());
             if (bookMove != 0) {
-                move = StaticMoveGenerator.findLegalMove(fwConfig.board, bookMove);
+                move = StaticMoveGenerator.findLegalMove(fwConfig.smpController.getBoard(), bookMove);
             }
         }
         return move;
@@ -552,12 +562,12 @@ public class GameController implements Runnable {
 
     private void stopEngineAndSync() {
         commandQueue.clear();
-        fwConfig.engine.forceStop();
+        fwConfig.smpController.forceStop();
         try {
             //wait till all queued commands are executed (normal state) stopping the engine as needed
             //this takes care of a stopEngineAndSync command while the engine is just being started
             while(!commandQueue.tryTransfer(new QueuedCommand(Command.SYNC), 100, TimeUnit.MILLISECONDS)){
-                fwConfig.engine.forceStop();
+                fwConfig.smpController.forceStop();
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -566,17 +576,17 @@ public class GameController implements Runnable {
 
     private void stopPondering() {
         fwConfig.timedSearchStarter.stopPondering();
-        fwConfig.engine.forceStop();
+        fwConfig.smpController.forceStop();
     }
 
     private void clearEngineState() {
-        fwConfig.engine.setMaxDepth(fwConfig.getMaxDepth());
-        fwConfig.engine.clearCaches();
+        fwConfig.smpController.setMaxDepth(fwConfig.getMaxDepth());
+        fwConfig.smpController.clearCaches();
     }
 
     private void setupStartPosition() {
         try {
-            fwConfig.board.setupBoard(Constants.STARTPOS);
+            fwConfig.smpController.setupBoard(Constants.STARTPOS);
         } catch (IllegalFENException e) {
             throw new IllegalStateException("cannot load start position", e);
         }
