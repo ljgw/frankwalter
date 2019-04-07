@@ -20,6 +20,7 @@ package com.winkelhagen.chess.frankwalter.util;
 //import java.util.BitSet;
 import java.util.Random;
 
+import com.winkelhagen.chess.frankwalter.board.Board;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -30,6 +31,16 @@ public class BitBoardTest {
 
 	private int controlCount = 0;
 	private Random rng = new MersenneTwister();
+
+	@Test
+	@Ignore
+	public void testRank23() throws IllegalFENException {
+		Board board = new Board();
+		board.setupBoard(Constants.STARTPOS);
+		BB.display(board.getPieces()[Constants.WHITE][Constants.PAWN]);
+		BB.display(BB.rank23[0]);
+		BB.display(BB.rank23[1]);
+	}
 
 	private boolean doFindMagic(boolean progressive, long rand, int sq, long[] magics){
 		int shift = BB.bishopShift[sq];

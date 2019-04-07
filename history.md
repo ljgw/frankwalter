@@ -1,6 +1,8 @@
 ##FrankWalter - history
 The latest version of FrankWalter is ${version}
 
+####v2.4.0
+* bugfix to SMP and some king safety evaluation code
 ####v2.3.5-SMP
 * SMP
 ####v2.3.5

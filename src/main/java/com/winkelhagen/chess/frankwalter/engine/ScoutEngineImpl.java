@@ -260,7 +260,7 @@ public class ScoutEngineImpl implements Engine {
                 currentDepth++;
             } else {
                 int baseDepth = searchDepths.get(0).get();
-                if (baseDepth <= currentDepth){
+                if (baseDepth >= currentDepth){ //todo: test this < -> >
                     currentDepth = baseDepth + 1 + searchThreadId%3;
                 } else {
                     currentDepth++;

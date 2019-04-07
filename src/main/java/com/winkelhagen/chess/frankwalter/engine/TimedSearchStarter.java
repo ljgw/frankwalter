@@ -63,7 +63,7 @@ public class TimedSearchStarter implements Runnable {
      * @param thinkingTime the time allowed to think
      * @param avoidMoves moves to avoid - these are not investigated unless no other moves are available.
      *
-     * @return an int representing the best move. ({@link Engine#getBestMove(Set, java.util.List)}
+     * @return an int representing the best move. ({@link SMPController#getBestMove(Set)}
      */
     public int getBestMove(boolean ponder, long thinkingTime, Set<Integer> avoidMoves) {
         this.ponder = ponder;

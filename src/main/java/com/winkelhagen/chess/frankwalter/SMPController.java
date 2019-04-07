@@ -107,6 +107,7 @@ public class SMPController {
 
         }
         int bestMove = engineList.get(0).getBestMove(avoidMoves, searchDepths, statistics);
+        running = false;
         // Log some statistics
         statistics.stop(MV.toString(bestMove));
         //make sure all search threads terminate
