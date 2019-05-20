@@ -66,6 +66,11 @@ public class BB {
 	 */
 	public static long ranksBetween[][] = new long[8][8]; //all ranks between arg1 and arg2.
 	/**
+	 * rank23[sideToScore]: second and third rank depending on color;
+	 */
+	public static long[] rank23 = new long[2];
+
+	/**
 	 * fileInFront[i][j]: the part of file <i>fileOf([j])</i> in front of the piece on [j] of color [i] 
 	 */
 	public static long fileInFront[][] = new long[2][64];
@@ -285,6 +290,9 @@ public class BB {
 				}
 			}
 		}
+		rank23[0] = BB.ranksBetween[1][2];
+		rank23[1] = BB.ranksBetween[5][6];
+
 		for (int rank = 1; rank<7; rank ++){
 			for (int file = 0; file<8; file++){
 				pawn[0][rank*8 + file] = ranksBetween[rank+1][rank+1] & closeFiles[file];

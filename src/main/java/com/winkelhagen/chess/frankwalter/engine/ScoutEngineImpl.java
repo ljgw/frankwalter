@@ -150,6 +150,8 @@ public class ScoutEngineImpl implements Engine {
     private int[] bestScore = new int[ABSOLUTE_MAX_DEPTH];
     private int searchThreadId = 0;
 
+    private int piecesAtRoot = 0;
+
     public void setSearchThreadId(int searchThreadId){
         this.searchThreadId = searchThreadId;
     }
@@ -165,6 +167,8 @@ public class ScoutEngineImpl implements Engine {
      */
     @Override
     public int getBestMove(Set<Integer> avoidMoves, List<AtomicInteger> searchDepths, SearchStatistics statistics) {
+
+        piecesAtRoot = board.getPieceCount();
 
         // initialize Statistics - at the real root of our tree.
         this.statistics = statistics;
@@ -256,7 +260,7 @@ public class ScoutEngineImpl implements Engine {
                 currentDepth++;
             } else {
                 int baseDepth = searchDepths.get(0).get();
-                if (baseDepth <= currentDepth){
+                if (baseDepth >= currentDepth){ //todo: test this < -> >
                     currentDepth = baseDepth + 1 + searchThreadId%3;
                 } else {
                     currentDepth++;
@@ -515,12 +519,12 @@ public class ScoutEngineImpl implements Engine {
         int alpha = alphaInput;
         int beta = betaInput;
 
-        // check for 2fold? check elsewhere, rep draw might be worth directing the FW to.. (or from!!) yes!!
         if (board.checkForSingleRepetitions()) {
             return Evaluator.getContemptScore();
         }
 
-        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount())){
+        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount()) && board.getPieceCount()<piecesAtRoot){
+            // search normally when the search started with the same number of pieces as we have now - an indication that there is no DTZ file
             int result = Syzygy.probeWDL(board);
             if (result!=-1){
                 statistics.tbhits++;
@@ -767,7 +771,9 @@ public class ScoutEngineImpl implements Engine {
     private int recurseQuiet(int alphaInput, int betaInput, int depth) {
         int alpha = alphaInput;
         int beta = betaInput;
-        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount())){
+        //todo should we use this? (https://www.chessprogramming.org/Syzygy_Bases#During_the_Search)
+        if (Constants.USE_TB && Syzygy.isAvailable(board.getPieceCount()) && board.getPieceCount()<piecesAtRoot){
+            // search normally when the search started with the same number of pieces as we have now - an indication that there is no DTZ file
             int result = Syzygy.probeWDL(board);
             if (result!=-1){
                 statistics.tbhits++;
